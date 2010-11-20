@@ -19,16 +19,23 @@
     )
   )
 
-(defn make-producer [connection transacted]
+(defn producer [connection {transacted :transacted}]
+  (if (nil? transacted) (throw (IllegalArgumentException. "No value specified for :transacted!")))
   (let [template (JmsTemplate. connection)]
     (doto template
       (.setSessionTransacted transacted)
       )
     (reify Producer
       (send-to [self destination message attributes]
-        (if (string? message)
+        (cond
+          (string? message)
           (.send template destination (proxy-message-creator #(.createTextMessage %1 %2) message attributes))
+          (instance? java.io.Serializable message)
           (.send template destination (proxy-message-creator #(.createObjectMessage %1 %2) message attributes))
+          (instance? (Class/forName "[B") message)
+          (.send template destination (proxy-message-creator #(doto (.createBytesMessage %1) (.writeBytes %2)) message attributes))
+          :else
+          (throw (IllegalStateException. (str "Unknown message format: " (class message))))
           )
         )
       )
