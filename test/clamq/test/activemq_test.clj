@@ -20,6 +20,26 @@
     )
   )
 
+(deftest on-failure-test
+  (let [broker (activemq broker-uri {})
+        received (atom "")
+        queue "clamq-test"
+        dlq "clamq-dlq"
+        producer (producer broker {:transacted true})
+        failing-consumer (consumer broker queue #(throw (RuntimeException. %1)) {:transacted true :on-failure #(send-to producer dlq (:message %1) {})})
+        working-consumer (consumer broker dlq #(reset! received %1) {:transacted true})
+        test-message "on-failure-test"]
+    (send-to producer queue test-message {})
+    (start failing-consumer)
+    (Thread/sleep 1000)
+    (stop failing-consumer)
+    (start working-consumer)
+    (Thread/sleep 1000)
+    (stop working-consumer)
+    (is (= test-message @received))
+    )
+  )
+
 (deftest transacted-test
   (let [broker (activemq broker-uri {})
         received (atom "")
@@ -56,6 +76,24 @@
     )
   )
 
+(deftest on-failure-pipe-test
+  (let [broker (activemq broker-uri {})
+        dlq "clamq-dlq"
+        received (atom "")
+        consumer (consumer broker dlq #(reset! received %1) {:transacted true})
+        producer (producer broker {:transacted true})
+        test-pipe (pipe {:from {:connection broker :source "pipe1"} :to {:connection broker :destination "pipe2"} :transacted true :filter-by #(throw (RuntimeException. %1)) :on-failure #(send-to producer dlq (:message %1) {})})
+        test-message "on-failure-pipe-test"]
+    (start consumer)
+    (send-to producer "pipe1" test-message {})
+    (open test-pipe)
+    (Thread/sleep 1000)
+    (close test-pipe)
+    (stop consumer)
+    (is (= test-message @received))
+    )
+  )
+
 (deftest multi-pipe-test
   (let [broker (activemq broker-uri {})
         received1 (atom "")
@@ -75,5 +113,23 @@
     (stop consumer1)
     (is (= test-message @received1))
     (is (= test-message @received2))
+    )
+  )
+
+(deftest on-failure-multi-pipe-test
+  (let [broker (activemq broker-uri {})
+        dlq "clamq-dlq"
+        received (atom "")
+        consumer (consumer broker dlq #(reset! received %1) {:transacted true})
+        producer (producer broker {:transacted true})
+        test-pipe (multi-pipe {:from {:connection broker :source "pipe1"} :to [{:connection broker :destination "pipe2" :filter-by identity :on-failure #(send-to producer dlq (:message %1) {})} {:connection broker :destination "pipe3" :filter-by #(throw (RuntimeException. %1)) :on-failure #(send-to producer dlq (:message %1) {})}] :transacted true})
+        test-message "on-failure-multi-pipe-test"]
+    (start consumer)
+    (send-to producer "pipe1" test-message {})
+    (open test-pipe)
+    (Thread/sleep 1000)
+    (close test-pipe)
+    (stop consumer)
+    (is (= test-message @received))
     )
   )
