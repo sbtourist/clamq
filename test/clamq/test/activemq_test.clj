@@ -64,7 +64,7 @@
         received (atom "")
         consumer (consumer broker "pipe2" #(reset! received %1) {:transacted true})
         producer (producer broker {:transacted true})
-        test-pipe (pipe {:from {:connection broker :source "pipe1"} :to {:connection broker :destination "pipe2"} :transacted true})
+        test-pipe (pipe {:from {:connection broker :endpoint "pipe1"} :to {:connection broker :endpoint "pipe2"} :transacted true})
         test-message "pipe-test"]
     (start consumer)
     (send-to producer "pipe1" test-message {})
@@ -82,7 +82,7 @@
         received (atom "")
         consumer (consumer broker dlq #(reset! received %1) {:transacted true})
         producer (producer broker {:transacted true})
-        test-pipe (pipe {:from {:connection broker :source "pipe1"} :to {:connection broker :destination "pipe2"} :transacted true :filter-by #(throw (RuntimeException. %1)) :on-failure #(send-to producer dlq (:message %1) {})})
+        test-pipe (pipe {:from {:connection broker :endpoint "pipe1"} :to {:connection broker :endpoint "pipe2"} :transacted true :filter-by #(throw (RuntimeException. %1)) :on-failure #(send-to producer dlq (:message %1) {})})
         test-message "on-failure-pipe-test"]
     (start consumer)
     (send-to producer "pipe1" test-message {})
@@ -101,7 +101,7 @@
         consumer1 (consumer broker "pipe2" #(reset! received1 %1) {:transacted true})
         consumer2 (consumer broker "pipe3" #(reset! received2 %1) {:transacted true})
         producer (producer broker {:transacted true})
-        test-pipe (multi-pipe {:from {:connection broker :source "pipe1"} :to [{:connection broker :destination "pipe2"} {:connection broker :destination "pipe3"}] :transacted true})
+        test-pipe (multi-pipe {:from {:connection broker :endpoint "pipe1"} :to [{:connection broker :endpoint "pipe2"} {:connection broker :endpoint "pipe3"}] :transacted true})
         test-message "multi-pipe-test"]
     (start consumer1)
     (start consumer2)
@@ -122,7 +122,7 @@
         received (atom "")
         consumer (consumer broker dlq #(reset! received %1) {:transacted true})
         producer (producer broker {:transacted true})
-        test-pipe (multi-pipe {:from {:connection broker :source "pipe1"} :to [{:connection broker :destination "pipe2" :filter-by identity :on-failure #(send-to producer dlq (:message %1) {})} {:connection broker :destination "pipe3" :filter-by #(throw (RuntimeException. %1)) :on-failure #(send-to producer dlq (:message %1) {})}] :transacted true})
+        test-pipe (multi-pipe {:from {:connection broker :endpoint "pipe1"} :to [{:connection broker :endpoint "pipe2" :filter-by identity :on-failure #(send-to producer dlq (:message %1) {})} {:connection broker :endpoint "pipe3" :filter-by #(throw (RuntimeException. %1)) :on-failure #(send-to producer dlq (:message %1) {})}] :transacted true})
         test-message "on-failure-multi-pipe-test"]
     (start consumer)
     (send-to producer "pipe1" test-message {})

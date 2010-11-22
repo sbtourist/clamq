@@ -12,8 +12,8 @@
   (close [self])
   )
 
-(defn pipe [{{source :source s-connection :connection} :from
-             {destination :destination d-connection :connection} :to
+(defn pipe [{{source :endpoint s-connection :connection} :from
+             {destination :endpoint d-connection :connection} :to
              filter-fn :filter-by
              failure-fn :on-failure
              transacted :transacted
@@ -29,14 +29,14 @@
     )
   )
 
-(defn multi-pipe [{{source :source s-connection :connection} :from
+(defn multi-pipe [{{source :endpoint s-connection :connection} :from
                    destinations :to
                    transacted :transacted
                    }]
   (let [filtered-multicast
           #(doseq [d destinations]
              (try
-               (send-to (producer (:connection d) {:transacted transacted}) (:destination d) ((get d :filter-by identity) %1) {})
+               (send-to (producer (:connection d) {:transacted transacted}) (:endpoint d) ((get d :filter-by identity) %1) {})
                (catch Exception ex ((get d :on-failure rethrow-on-failure) {:exception ex :message %1}))))
         head
           (consumer s-connection source filtered-multicast {:transacted transacted})
