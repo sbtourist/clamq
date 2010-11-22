@@ -39,8 +39,11 @@
     )
   )
 
-(defn consumer [connection destination handler-fn {transacted :transacted consumers :consumers failure-fn :on-failure :or {consumers 1 failure-fn rethrow-on-failure}}]
-  (if (nil? transacted) (throw (IllegalArgumentException. "No value specified for :transacted!")))
+(defn consumer [connection destination transacted handler-fn & {consumers :consumers failure-fn :on-failure :or {consumers 1 failure-fn rethrow-on-failure}}]
+  (if (nil? connection) (throw (IllegalArgumentException. "No value specified for connection!")))
+  (if (nil? destination) (throw (IllegalArgumentException. "No value specified for destination!")))
+  (if (nil? transacted) (throw (IllegalArgumentException. "No value specified for transacted!")))
+  (if (nil? handler-fn) (throw (IllegalArgumentException. "No value specified for handler function!")))
   (let [container (DefaultMessageListenerContainer.) listener (proxy-message-listener handler-fn failure-fn)]
     (doto container
       (.setConnectionFactory connection)

@@ -19,9 +19,9 @@
              transacted :transacted
              :or {filter-fn identity failure-fn rethrow-on-failure}
              }]
-  (let [tail (producer d-connection {:transacted transacted})
+  (let [tail (producer d-connection transacted)
         filtered-handoff #(send-to tail destination (filter-fn %1) {})
-        head (consumer s-connection source filtered-handoff {:transacted transacted :on-failure failure-fn})]
+        head (consumer s-connection source transacted filtered-handoff :on-failure failure-fn)]
     (reify Pipe
       (open [self] (start head))
       (close [self] (stop head))
@@ -36,10 +36,10 @@
   (let [filtered-multicast
           #(doseq [d destinations]
              (try
-               (send-to (producer (:connection d) {:transacted transacted}) (:endpoint d) ((get d :filter-by identity) %1) {})
+               (send-to (producer (:connection d) transacted) (:endpoint d) ((get d :filter-by identity) %1) {})
                (catch Exception ex ((get d :on-failure rethrow-on-failure) {:exception ex :message %1}))))
         head
-          (consumer s-connection source filtered-multicast {:transacted transacted})
+          (consumer s-connection source transacted filtered-multicast)
         ]
     (reify Pipe
       (open [self] (start head))

@@ -19,8 +19,9 @@
     )
   )
 
-(defn producer [connection {transacted :transacted}]
-  (if (nil? transacted) (throw (IllegalArgumentException. "No value specified for :transacted!")))
+(defn producer [connection transacted]
+  (if (nil? connection) (throw (IllegalArgumentException. "No value specified for connection!")))
+  (if (nil? transacted) (throw (IllegalArgumentException. "No value specified for transacted!")))
   (let [template (JmsTemplate. connection)]
     (doto template
       (.setSessionTransacted transacted)
