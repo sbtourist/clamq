@@ -34,12 +34,16 @@
                    transacted :transacted
                    }]
   (let [filtered-multicast
-          #(doseq [d destinations]
+        #(doseq [d destinations]
              (try
-               (send-to (producer (:connection d) transacted) (:endpoint d) ((get d :filter-by identity) %1) {})
-               (catch Exception ex ((get d :on-failure rethrow-on-failure) {:exception ex :message %1}))))
+               (let [message ((get d :filter-by identity) %1)]
+                 (if (not (nil? message)) (send-to (producer (:connection d) transacted) (:endpoint d) message {}))
+                 )
+               (catch Exception ex ((get d :on-failure rethrow-on-failure) {:exception ex :message %1}))
+               )
+             )
         head
-          (consumer s-connection source transacted filtered-multicast)
+        (consumer s-connection source transacted filtered-multicast)
         ]
     (reify Pipe
       (open [self] (start head))
