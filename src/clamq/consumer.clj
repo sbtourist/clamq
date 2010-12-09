@@ -26,25 +26,29 @@
     )
   )
 
-(defn- proxy-message-listener [handler-fn failure-fn]
-  (proxy [MessageListener] []
-    (onMessage [message]
-      (let [converted (convert-message message)]
-        (try
-          (handler-fn converted)
-          (catch Exception ex (failure-fn {:message converted :exception ex}))
+(defn- proxy-message-listener [handler-fn failure-fn limit container]
+  (let [counter (atom 0)]
+    (proxy [MessageListener] []
+      (onMessage [message]
+        (swap! counter inc)
+        (let [converted (convert-message message)]
+          (try
+            (handler-fn converted)
+            (catch Exception ex (failure-fn {:message converted :exception ex}))
+            (finally (if (= limit @counter) (.stop container)))
+            )
           )
         )
       )
     )
   )
 
-(defn consumer [connection destination transacted handler-fn & {consumers :consumers failure-fn :on-failure :or {consumers 1 failure-fn rethrow-on-failure}}]
+(defn consumer [connection destination transacted handler-fn & {consumers :consumers limit :limit failure-fn :on-failure :or {consumers 1 limit 0 failure-fn rethrow-on-failure}}]
   (if (nil? connection) (throw (IllegalArgumentException. "No value specified for connection!")))
   (if (nil? destination) (throw (IllegalArgumentException. "No value specified for destination!")))
   (if (nil? transacted) (throw (IllegalArgumentException. "No value specified for transacted!")))
   (if (nil? handler-fn) (throw (IllegalArgumentException. "No value specified for handler function!")))
-  (let [container (DefaultMessageListenerContainer.) listener (proxy-message-listener handler-fn failure-fn)]
+  (let [container (DefaultMessageListenerContainer.) listener (proxy-message-listener handler-fn failure-fn limit container)]
     (doto container
       (.setConnectionFactory connection)
       (.setDestinationName destination)

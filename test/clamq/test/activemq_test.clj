@@ -20,6 +20,23 @@
     )
   )
 
+(deftest producer-consumer-limit-test
+  (let [broker (activemq broker-uri)
+        received (atom 0)
+        queue "producer-consumer-limit-test-queue"
+        messages 3
+        limit 2
+        consumer (consumer broker queue false #(do (swap! received inc) %1) :limit limit)
+        producer (producer broker false)
+        test-message "producer-consumer-limit-test"]
+    (loop [i 1] (send-to producer queue test-message {}) (if (< i messages) (recur (inc i))))
+    (start consumer)
+    (Thread/sleep 1000)
+    (stop consumer)
+    (is (= limit @received))
+    )
+  )
+
 (deftest on-failure-test
   (let [broker (activemq broker-uri)
         received (atom "")
@@ -78,6 +95,27 @@
     )
   )
 
+(deftest pipe-limit-test
+  (let [broker (activemq broker-uri)
+        received (atom 0)
+        queue1 "pipe-limit-test-queue1"
+        queue2 "pipe-limit-test-queue2"
+        messages 3
+        limit 2
+        consumer (consumer broker queue2 true #(do (swap! received inc) %1))
+        producer (producer broker true)
+        test-pipe (pipe {:from {:connection broker :endpoint queue1} :to {:connection broker :endpoint queue2} :transacted true :limit limit})
+        test-message "pipe-limit-test"]
+    (start consumer)
+    (loop [i 1] (send-to producer queue1 test-message {}) (if (< i messages) (recur (inc i))))
+    (open test-pipe)
+    (Thread/sleep 1000)
+    (close test-pipe)
+    (stop consumer)
+    (is (= limit @received))
+    )
+  )
+
 (deftest on-failure-pipe-test
   (let [broker (activemq broker-uri)
         queue1 "on-failure-pipe-test-queue1"
@@ -120,6 +158,33 @@
     (stop consumer1)
     (is (= test-message @received1))
     (is (= test-message @received2))
+    )
+  )
+
+(deftest multi-pipe-limit-test
+  (let [broker (activemq broker-uri)
+        queue1 "multi-pipe-limit-test-queue1"
+        queue2 "multi-pipe-limit-test-queue2"
+        queue3 "multi-pipe-limit-test-queue3"
+        received1 (atom 0)
+        received2 (atom 0)
+        messages 3
+        limit 2
+        consumer1 (consumer broker queue2 true #(do (swap! received1 inc) %1))
+        consumer2 (consumer broker queue3 true #(do (swap! received2 inc) %1))
+        producer (producer broker true)
+        test-pipe (multi-pipe {:from {:connection broker :endpoint queue1} :to [{:connection broker :endpoint queue2} {:connection broker :endpoint queue3}] :transacted true :limit limit})
+        test-message "multi-pipe-limit-test"]
+    (start consumer1)
+    (start consumer2)
+    (loop [i 1] (send-to producer queue1 test-message {}) (if (< i messages) (recur (inc i))))
+    (open test-pipe)
+    (Thread/sleep 1000)
+    (close test-pipe)
+    (stop consumer2)
+    (stop consumer1)
+    (is (= limit @received1))
+    (is (= limit @received2))
     )
   )
 

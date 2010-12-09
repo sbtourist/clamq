@@ -17,11 +17,12 @@
              filter-fn :filter-by
              failure-fn :on-failure
              transacted :transacted
-             :or {filter-fn identity failure-fn rethrow-on-failure}
+             limit :limit
+             :or {filter-fn identity failure-fn rethrow-on-failure limit 0}
              }]
   (let [tail (producer d-connection transacted)
         filtered-handoff #(send-to tail destination (filter-fn %1) {})
-        head (consumer s-connection source transacted filtered-handoff :on-failure failure-fn)]
+        head (consumer s-connection source transacted filtered-handoff :limit limit :on-failure failure-fn)]
     (reify Pipe
       (open [self] (start head))
       (close [self] (stop head))
@@ -32,6 +33,8 @@
 (defn multi-pipe [{{source :endpoint s-connection :connection} :from
                    destinations :to
                    transacted :transacted
+                   limit :limit
+                   :or {limit 0}
                    }]
   (let [filtered-multicast
         #(doseq [d destinations]
@@ -43,7 +46,7 @@
                )
              )
         head
-        (consumer s-connection source transacted filtered-multicast)
+        (consumer s-connection source transacted filtered-multicast :limit limit)
         ]
     (reify Pipe
       (open [self] (start head))
