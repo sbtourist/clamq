@@ -19,12 +19,13 @@
     )
   )
 
-(defn producer [connection & {transacted :transacted}]
+(defn producer [connection & {transacted :transacted pubSub :pubSub :or {pubSub false}}]
   (if (nil? connection) (throw (IllegalArgumentException. "No value specified for connection!")))
   (if (nil? transacted) (throw (IllegalArgumentException. "No value specified for transacted!")))
   (let [template (JmsTemplate. connection)]
     (doto template
       (.setSessionTransacted transacted)
+      (.setPubSubDomain pubSub)
       )
     (reify Producer
       (send-to [self destination message attributes]

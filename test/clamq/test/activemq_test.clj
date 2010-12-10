@@ -20,6 +20,22 @@
     )
   )
 
+(deftest producer-consumer-topic-test
+  (let [broker (activemq broker-uri)
+        received (atom "")
+        topic "producer-consumer-topic-test-topic"
+        consumer (consumer broker topic #(reset! received %1) :transacted false :pubSub true)
+        producer (producer broker :transacted false :pubSub true)
+        test-message "producer-consumer-topic-test"]
+    (start consumer)
+    (Thread/sleep 1000)
+    (send-to producer topic test-message {})
+    (Thread/sleep 1000)
+    (stop consumer)
+    (is (= test-message @received))
+    )
+  )
+
 (deftest producer-consumer-limit-test
   (let [broker (activemq broker-uri)
         received (atom 0)
@@ -95,6 +111,26 @@
     )
   )
 
+(deftest pipe-topic-test
+  (let [broker (activemq broker-uri)
+        received (atom "")
+        topic1 "pipe-topic-test-topic1"
+        topic2 "pipe-topic-test-topic2"
+        consumer (consumer broker topic2 #(reset! received %1) :transacted true :pubSub true)
+        producer (producer broker :transacted true :pubSub true)
+        test-pipe (pipe {:from {:connection broker :endpoint topic1 :pubSub true} :to {:connection broker :endpoint topic2 :pubSub true} :transacted true})
+        test-message "pipe-topic-test"]
+    (start consumer)
+    (open test-pipe)
+    (Thread/sleep 1000)
+    (send-to producer topic1 test-message {})
+    (Thread/sleep 1000)
+    (close test-pipe)
+    (stop consumer)
+    (is (= test-message @received))
+    )
+  )
+
 (deftest pipe-limit-test
   (let [broker (activemq broker-uri)
         received (atom 0)
@@ -152,6 +188,32 @@
     (start consumer2)
     (send-to producer queue1 test-message {})
     (open test-pipe)
+    (Thread/sleep 1000)
+    (close test-pipe)
+    (stop consumer2)
+    (stop consumer1)
+    (is (= test-message @received1))
+    (is (= test-message @received2))
+    )
+  )
+
+(deftest multi-pipe-topic-test
+  (let [broker (activemq broker-uri)
+        topic1 "multi-pipe-topic-test-topic1"
+        topic2 "multi-pipe-topic-test-topic2"
+        topic3 "multi-pipe-topic-test-topic3"
+        received1 (atom "")
+        received2 (atom "")
+        consumer1 (consumer broker topic2 #(reset! received1 %1) :transacted true :pubSub true)
+        consumer2 (consumer broker topic3 #(reset! received2 %1) :transacted true :pubSub true)
+        producer (producer broker :transacted true :pubSub true)
+        test-pipe (multi-pipe {:from {:connection broker :endpoint topic1 :pubSub true} :to [{:connection broker :endpoint topic2 :pubSub true} {:connection broker :endpoint topic3 :pubSub true}] :transacted true})
+        test-message "multi-pipe-topic-test"]
+    (start consumer1)
+    (start consumer2)
+    (open test-pipe)
+    (Thread/sleep 1000)
+    (send-to producer topic1 test-message {})
     (Thread/sleep 1000)
     (close test-pipe)
     (stop consumer2)

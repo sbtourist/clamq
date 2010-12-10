@@ -43,7 +43,7 @@
     )
   )
 
-(defn consumer [connection destination handler-fn & {transacted :transacted limit :limit failure-fn :on-failure :or {limit 0 failure-fn rethrow-on-failure}}]
+(defn consumer [connection destination handler-fn & {transacted :transacted pubSub :pubSub limit :limit failure-fn :on-failure :or {pubSub false limit 0 failure-fn rethrow-on-failure}}]
   (if (nil? connection) (throw (IllegalArgumentException. "No value specified for connection!")))
   (if (nil? destination) (throw (IllegalArgumentException. "No value specified for destination!")))
   (if (nil? transacted) (throw (IllegalArgumentException. "No value specified for transacted!")))
@@ -54,6 +54,7 @@
       (.setDestinationName destination)
       (.setMessageListener listener)
       (.setSessionTransacted transacted)
+      (.setPubSubDomain pubSub)
       )
     (reify Consumer
       (start [self] (do (doto container (.start) (.initialize)) nil))
