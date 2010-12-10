@@ -35,7 +35,7 @@
           (try
             (handler-fn converted)
             (catch Exception ex (failure-fn {:message converted :exception ex}))
-            (finally (if (= limit @counter) (.stop container)))
+            (finally (if (= limit @counter) (do (.stop container) (future (.shutdown container)))))
             )
           )
         )
@@ -56,8 +56,8 @@
       (.setSessionTransacted transacted)
       )
     (reify Consumer
-      (start [self] (doto container (.start) (.initialize)))
-      (stop [self] (.shutdown container))
+      (start [self] (do (doto container (.start) (.initialize)) nil))
+      (stop [self] (do (.shutdown container) nil))
       )
     )
   )
