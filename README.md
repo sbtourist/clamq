@@ -81,14 +81,14 @@ Each message flowing between endpoints in a pipe is filtered by a filter functio
 
 Clamq provides two different kind of pipes: unicast pipes, connecting two single endpoints, and multicast pipes, connecting a source endpoint with multiple destination endpoints.
 
-Unicast pipes are defined as follows:
+**Unicast** pipes are defined as follows:
 
     (ns clamq.test (:use [clamq.pipes]))
     (def pipe (pipe {
       :from {:connection broker :endpoint source :pubSub pubSub}
       :to {:connection broker :endpoint destination} :transacted true :pubSub pubSub :limit limit :filter-by filter-fn :on-failure failure-fn}))
 
-Multicast pipes are pretty similar, except they get an array of destinations:
+**Multicast** pipes are pretty similar, except they get an array of destinations:
 
     (ns clamq.test (:use [clamq.pipes]))
     (def pipe (multi-pipe {
