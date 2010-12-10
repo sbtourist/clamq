@@ -9,8 +9,8 @@
   (let [broker (activemq broker-uri)
         received (atom "")
         queue "producer-consumer-test-queue"
-        consumer (consumer broker queue false #(reset! received %1))
-        producer (producer broker false)
+        consumer (consumer broker queue #(reset! received %1) :transacted false)
+        producer (producer broker :transacted false)
         test-message "producer-consumer-test"]
     (send-to producer queue test-message {})
     (start consumer)
@@ -26,8 +26,8 @@
         queue "producer-consumer-limit-test-queue"
         messages 3
         limit 2
-        consumer (consumer broker queue false #(do (swap! received inc) %1) :limit limit)
-        producer (producer broker false)
+        consumer (consumer broker queue #(do (swap! received inc) %1) :transacted false :limit limit)
+        producer (producer broker :transacted false)
         test-message "producer-consumer-limit-test"]
     (loop [i 1] (send-to producer queue test-message {}) (if (< i messages) (recur (inc i))))
     (start consumer)
@@ -42,9 +42,9 @@
         received (atom "")
         queue "on-failure-test-queue"
         dlq "on-failure-test-dlq"
-        producer (producer broker true)
-        failing-consumer (consumer broker queue true #(throw (RuntimeException. %1)) :on-failure #(send-to producer dlq (:message %1) {}))
-        working-consumer (consumer broker dlq true #(reset! received %1))
+        producer (producer broker :transacted true)
+        failing-consumer (consumer broker queue #(throw (RuntimeException. %1)) :transacted true :on-failure #(send-to producer dlq (:message %1) {}))
+        working-consumer (consumer broker dlq #(reset! received %1) :transacted true)
         test-message "on-failure-test"]
     (send-to producer queue test-message {})
     (start failing-consumer)
@@ -61,9 +61,9 @@
   (let [broker (activemq broker-uri)
         received (atom "")
         queue "transacted-test-queue"
-        failing-consumer (consumer broker queue true #(throw (RuntimeException. %1)))
-        working-consumer (consumer broker queue true #(reset! received %1))
-        producer (producer broker true)
+        failing-consumer (consumer broker queue #(throw (RuntimeException. %1)) :transacted true)
+        working-consumer (consumer broker queue #(reset! received %1) :transacted true)
+        producer (producer broker :transacted true)
         test-message "transacted-test"]
     (send-to producer queue test-message {})
     (start failing-consumer)
@@ -81,8 +81,8 @@
         received (atom "")
         queue1 "pipe-test-queue1"
         queue2 "pipe-test-queue2"
-        consumer (consumer broker queue2 true #(reset! received %1))
-        producer (producer broker true)
+        consumer (consumer broker queue2 #(reset! received %1) :transacted true)
+        producer (producer broker :transacted true)
         test-pipe (pipe {:from {:connection broker :endpoint queue1} :to {:connection broker :endpoint queue2} :transacted true})
         test-message "pipe-test"]
     (start consumer)
@@ -102,8 +102,8 @@
         queue2 "pipe-limit-test-queue2"
         messages 3
         limit 2
-        consumer (consumer broker queue2 true #(do (swap! received inc) %1))
-        producer (producer broker true)
+        consumer (consumer broker queue2 #(do (swap! received inc) %1) :transacted true)
+        producer (producer broker :transacted true)
         test-pipe (pipe {:from {:connection broker :endpoint queue1} :to {:connection broker :endpoint queue2} :transacted true :limit limit})
         test-message "pipe-limit-test"]
     (start consumer)
@@ -122,8 +122,8 @@
         queue2 "on-failure-pipe-test-queue2"
         dlq "on-failure-pipe-test-dlq"
         received (atom "")
-        consumer (consumer broker dlq true #(reset! received %1))
-        producer (producer broker true)
+        consumer (consumer broker dlq #(reset! received %1) :transacted true)
+        producer (producer broker :transacted true)
         test-pipe (pipe {:from {:connection broker :endpoint queue1} :to {:connection broker :endpoint queue2} :transacted true :filter-by #(throw (RuntimeException. %1)) :on-failure #(send-to producer dlq (:message %1) {})})
         test-message "on-failure-pipe-test"]
     (start consumer)
@@ -143,9 +143,9 @@
         queue3 "multi-pipe-test-queue3"
         received1 (atom "")
         received2 (atom "")
-        consumer1 (consumer broker queue2 true #(reset! received1 %1))
-        consumer2 (consumer broker queue3 true #(reset! received2 %1))
-        producer (producer broker true)
+        consumer1 (consumer broker queue2 #(reset! received1 %1) :transacted true)
+        consumer2 (consumer broker queue3 #(reset! received2 %1) :transacted true)
+        producer (producer broker :transacted true)
         test-pipe (multi-pipe {:from {:connection broker :endpoint queue1} :to [{:connection broker :endpoint queue2} {:connection broker :endpoint queue3}] :transacted true})
         test-message "multi-pipe-test"]
     (start consumer1)
@@ -170,9 +170,9 @@
         received2 (atom 0)
         messages 3
         limit 2
-        consumer1 (consumer broker queue2 true #(do (swap! received1 inc) %1))
-        consumer2 (consumer broker queue3 true #(do (swap! received2 inc) %1))
-        producer (producer broker true)
+        consumer1 (consumer broker queue2 #(do (swap! received1 inc) %1) :transacted true)
+        consumer2 (consumer broker queue3 #(do (swap! received2 inc) %1) :transacted true)
+        producer (producer broker :transacted true)
         test-pipe (multi-pipe {:from {:connection broker :endpoint queue1} :to [{:connection broker :endpoint queue2} {:connection broker :endpoint queue3}] :transacted true :limit limit})
         test-message "multi-pipe-limit-test"]
     (start consumer1)
@@ -195,9 +195,9 @@
         queue3 "multi-pipe-with-discard-test-queue3"
         received1 (atom "")
         received2 (atom "")
-        consumer1 (consumer broker queue2 true #(reset! received1 %1))
-        consumer2 (consumer broker queue3 true #(reset! received2 %1))
-        producer (producer broker true)
+        consumer1 (consumer broker queue2 #(reset! received1 %1) :transacted true)
+        consumer2 (consumer broker queue3 #(reset! received2 %1) :transacted true)
+        producer (producer broker :transacted true)
         test-pipe (multi-pipe {:from {:connection broker :endpoint queue1} :to [{:connection broker :endpoint queue2} {:connection broker :endpoint queue3 :filter-by discard}] :transacted true})
         test-message "multi-pipe-test"]
     (start consumer1)
@@ -221,9 +221,9 @@
         dlq "on-failure-multi-pipe-test-dlq"
         pipe2-received (atom "")
         dlq-received (atom "")
-        pipe2-consumer (consumer broker queue2 true #(reset! pipe2-received %1))
-        dlq-consumer (consumer broker dlq true #(reset! dlq-received %1))
-        producer (producer broker true)
+        pipe2-consumer (consumer broker queue2 #(reset! pipe2-received %1) :transacted true)
+        dlq-consumer (consumer broker dlq #(reset! dlq-received %1) :transacted true)
+        producer (producer broker :transacted true)
         test-pipe (multi-pipe {:from {:connection broker :endpoint queue1} :to [{:connection broker :endpoint queue2} {:connection broker :endpoint queue3 :filter-by #(throw (RuntimeException. %1)) :on-failure #(send-to producer dlq (:message %1) {})}] :transacted true})
         test-message "on-failure-multi-pipe-test"]
     (start dlq-consumer)

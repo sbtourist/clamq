@@ -19,7 +19,7 @@
     )
   )
 
-(defn producer [connection transacted]
+(defn producer [connection & {transacted :transacted}]
   (if (nil? connection) (throw (IllegalArgumentException. "No value specified for connection!")))
   (if (nil? transacted) (throw (IllegalArgumentException. "No value specified for transacted!")))
   (let [template (JmsTemplate. connection)]

@@ -20,9 +20,9 @@
              limit :limit
              :or {filter-fn identity failure-fn rethrow-on-failure limit 0}
              }]
-  (let [tail (producer d-connection transacted)
+  (let [tail (producer d-connection :transacted transacted)
         filtered-handoff #(send-to tail destination (filter-fn %1) {})
-        head (consumer s-connection source transacted filtered-handoff :limit limit :on-failure failure-fn)]
+        head (consumer s-connection source filtered-handoff :transacted transacted :limit limit :on-failure failure-fn)]
     (reify Pipe
       (open [self] (start head))
       (close [self] (stop head))
@@ -40,13 +40,13 @@
         #(doseq [d destinations]
              (try
                (let [message ((get d :filter-by identity) %1)]
-                 (if (not (nil? message)) (send-to (producer (:connection d) transacted) (:endpoint d) message {}))
+                 (if (not (nil? message)) (send-to (producer (:connection d) :transacted transacted) (:endpoint d) message {}))
                  )
                (catch Exception ex ((get d :on-failure rethrow-on-failure) {:exception ex :message %1}))
                )
              )
         head
-        (consumer s-connection source transacted filtered-multicast :limit limit)
+        (consumer s-connection source filtered-multicast :transacted transacted :limit limit)
         ]
     (reify Pipe
       (open [self] (start head))
