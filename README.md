@@ -1,4 +1,4 @@
-# Clamq - Version 0.1 (in progress)
+# Clamq - Version 0.1
 
 Clamq is a Clojure adapter for interacting with JMS brokers, providing simple APIs to connect to brokers and sending/consuming messages to/from message queues and topics.
 
