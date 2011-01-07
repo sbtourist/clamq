@@ -13,5 +13,8 @@
                   ]
                  [org.apache.activemq/activemq-pool "5.4.0"]
                  [org.springframework/spring-context "3.0.5.RELEASE"]
-                 [org.springframework/spring-jms "3.0.5.RELEASE"]]
+                 [org.springframework/spring-jms "3.0.5.RELEASE"]
+                 [org.springframework.amqp/spring-amqp "1.0.0.M2"]
+                 [org.springframework.amqp/spring-rabbit "1.0.0.M2"]]
+   :repositories {"springsource-milestones" "http://maven.springframework.org/milestone"}
 )

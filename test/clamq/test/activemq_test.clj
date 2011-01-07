@@ -1,31 +1,23 @@
 (ns clamq.test.activemq-test
- (:import [java.io Serializable])
- (:use [clojure.test] [clamq.connection.activemq] [clamq.consumer] [clamq.producer] [clamq.pipes] [clamq.helpers] [clamq.test.base-test])
+ (:use [clojure.test] [clamq.test.base-jms-test] [clamq.jms] [clamq.activemq])
  )
 
-(defn setup-broker-fixture [test-fn]
-  (let [broker (activemq "tcp://localhost:61616")]
-    (test-fn broker)
+(defn setup-connection-and-test [test-fn]
+  (let [connection (jms-connection (activemq-connection "tcp://localhost:61616"))]
+    (test-fn connection)
     )
   )
 
-(deftest test-suite
-  (setup-broker-fixture producer-consumer-test)
-  (setup-broker-fixture producer-consumer-topic-test)
-  (setup-broker-fixture producer-consumer-limit-test)
-  (setup-broker-fixture on-failure-test)
-  (setup-broker-fixture transacted-test)
-  (setup-broker-fixture pipe-test)
-  (setup-broker-fixture pipe-topic-test)
-  (setup-broker-fixture pipe-limit-test)
-  (setup-broker-fixture on-failure-pipe-test)
-  (setup-broker-fixture multi-pipe-test)
-  (setup-broker-fixture multi-pipe-topic-test)
-  (setup-broker-fixture multi-pipe-limit-test)
-  (setup-broker-fixture multi-pipe-with-discard-test)
-  (setup-broker-fixture on-failure-multi-pipe-test)
-  )
-
-(defn test-ns-hook []
-  (test-suite)
+(deftest activemq-test-suite []
+  (setup-connection-and-test producer-consumer-test)
+  (setup-connection-and-test producer-consumer-topic-test)
+  (setup-connection-and-test producer-consumer-limit-test)
+  (setup-connection-and-test on-failure-test)
+  (setup-connection-and-test transacted-test)
+  (setup-connection-and-test pipe-test)
+  (setup-connection-and-test pipe-topic-test)
+  (setup-connection-and-test pipe-limit-test)
+  (setup-connection-and-test multi-pipe-test)
+  (setup-connection-and-test multi-pipe-topic-test)
+  (setup-connection-and-test multi-pipe-limit-test)
   )
