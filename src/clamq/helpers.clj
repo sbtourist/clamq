@@ -1,6 +1,4 @@
-(ns clamq.helpers
- (:use [clamq.producer])
- )
+(ns clamq.helpers)
 
 (defn discard [message]
   nil

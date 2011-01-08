@@ -1,5 +1,5 @@
 (ns clamq.test.activemq-test
- (:use [clojure.test] [clamq.test.base-jms-test] [clamq.jms] [clamq.activemq])
+ (:use [clojure.test] [clamq.test.base-jms-test] [clamq.protocol] [clamq.jms] [clamq.activemq])
  )
 
 (defn setup-connection-and-test [test-fn]

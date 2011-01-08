@@ -1,5 +1,5 @@
 (ns clamq.test.base-jms-test
- (:use [clojure.test] [clamq.protocol] [clamq.jms] [clamq.pipes] [clamq.helpers])
+ (:use [clojure.test] [clamq.protocol] [clamq.jms] [clamq.pipes])
  )
 
 (defn producer-consumer-test [connection]
