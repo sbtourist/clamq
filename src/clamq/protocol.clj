@@ -6,7 +6,7 @@
   )
 
 (defprotocol Producer
-  (send-to [self destination message attributes])
+  (send-to [self destination message] [self destination message attributes])
   )
 
 (defprotocol Consumer

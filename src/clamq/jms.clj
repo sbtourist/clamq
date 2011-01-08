@@ -69,6 +69,7 @@
           (throw (IllegalStateException. (str "Unknown message format: " (class message))))
           )
         )
+      (send-to [self destination message] (send-to self destination message {}))
       )
     )
   )

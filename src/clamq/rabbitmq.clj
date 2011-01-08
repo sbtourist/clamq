@@ -37,6 +37,7 @@
           (.convertAndSend template exchange routing-key message)
           )
         )
+      (send-to [self destination message] (send-to self destination message {}))
       )
     )
   )

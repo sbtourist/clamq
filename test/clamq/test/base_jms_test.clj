@@ -8,7 +8,7 @@
         consumer (consumer connection {:endpoint queue :on-message #(reset! received %1) :transacted false})
         producer (producer connection)
         test-message "producer-consumer-test"]
-    (send-to producer queue test-message {})
+    (send-to producer queue test-message)
     (start consumer)
     (Thread/sleep 1000)
     (stop consumer)
@@ -24,7 +24,7 @@
         test-message "producer-consumer-topic-test"]
     (start consumer)
     (Thread/sleep 1000)
-    (send-to producer topic test-message {})
+    (send-to producer topic test-message)
     (Thread/sleep 1000)
     (stop consumer)
     (is (= test-message @received))
@@ -39,7 +39,7 @@
         consumer (consumer connection {:endpoint queue :on-message #(do (swap! received inc) %1) :transacted true :limit limit})
         producer (producer connection)
         test-message "producer-consumer-limit-test"]
-    (loop [i 1] (send-to producer queue test-message {}) (if (< i messages) (recur (inc i))))
+    (loop [i 1] (send-to producer queue test-message) (if (< i messages) (recur (inc i))))
     (start consumer)
     (Thread/sleep 1000)
     (stop consumer)
@@ -55,7 +55,7 @@
         failing-consumer (consumer connection {:endpoint queue :on-message #(throw (RuntimeException. %1)) :transacted true :on-failure #(send-to producer dlq (:message %1) {})})
         working-consumer (consumer connection {:endpoint dlq :on-message #(reset! received %1) :transacted true})
         test-message "on-failure-test"]
-    (send-to producer queue test-message {})
+    (send-to producer queue test-message)
     (start failing-consumer)
     (Thread/sleep 1000)
     (stop failing-consumer)
@@ -73,7 +73,7 @@
         working-consumer (consumer connection {:endpoint queue :on-message #(reset! received %1) :transacted true})
         producer (producer connection)
         test-message "transacted-test"]
-    (send-to producer queue test-message {})
+    (send-to producer queue test-message)
     (start failing-consumer)
     (Thread/sleep 1000)
     (stop failing-consumer)
@@ -93,7 +93,7 @@
         test-pipe (pipe {:from {:connection connection :endpoint queue1} :to {:connection connection :endpoint queue2} :transacted true})
         test-message "pipe-test"]
     (start consumer)
-    (send-to producer queue1 test-message {})
+    (send-to producer queue1 test-message)
     (open test-pipe)
     (Thread/sleep 1000)
     (close test-pipe)
@@ -113,7 +113,7 @@
     (start consumer)
     (open test-pipe)
     (Thread/sleep 1000)
-    (send-to producer topic1 test-message {})
+    (send-to producer topic1 test-message)
     (Thread/sleep 1000)
     (close test-pipe)
     (stop consumer)
@@ -132,7 +132,7 @@
         test-pipe (pipe {:from {:connection connection :endpoint queue1} :to {:connection connection :endpoint queue2} :transacted true :limit limit})
         test-message "pipe-limit-test"]
     (start consumer)
-    (loop [i 1] (send-to producer queue1 test-message {}) (if (< i messages) (recur (inc i))))
+    (loop [i 1] (send-to producer queue1 test-message) (if (< i messages) (recur (inc i))))
     (open test-pipe)
     (Thread/sleep 1000)
     (close test-pipe)
@@ -154,7 +154,7 @@
         test-message "multi-pipe-test"]
     (start consumer1)
     (start consumer2)
-    (send-to producer queue1 test-message {})
+    (send-to producer queue1 test-message)
     (open test-pipe)
     (Thread/sleep 1000)
     (close test-pipe)
@@ -180,7 +180,7 @@
     (start consumer2)
     (open test-pipe)
     (Thread/sleep 1000)
-    (send-to producer topic1 test-message {})
+    (send-to producer topic1 test-message)
     (Thread/sleep 1000)
     (close test-pipe)
     (stop consumer2)
@@ -205,7 +205,7 @@
         test-message "multi-pipe-limit-test"]
     (start consumer1)
     (start consumer2)
-    (loop [i 1] (send-to producer queue1 test-message {}) (if (< i messages) (recur (inc i))))
+    (loop [i 1] (send-to producer queue1 test-message) (if (< i messages) (recur (inc i))))
     (open test-pipe)
     (Thread/sleep 1000)
     (close test-pipe)
