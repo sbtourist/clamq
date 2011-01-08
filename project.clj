@@ -1,5 +1,5 @@
-(defproject clamq "0.1"
-  :description "Clojure Adapter for JMS Message Queues"
+(defproject clamq "0.2-SNAPSHOT"
+  :description "Clojure Adapter for Message Queues"
   :dependencies [[org.clojure/clojure "1.2.0"]
                  [org.clojure/clojure-contrib "1.2.0"]
                  [org.apache.activemq/activemq-core "5.4.0" 
