@@ -4,45 +4,35 @@
    )
  (:import
    [javax.jms BytesMessage ObjectMessage TextMessage ExceptionListener MessageListener]
-   [org.springframework.jms.core JmsTemplate MessageCreator]
+   [org.springframework.jms.core JmsTemplate MessagePostProcessor]
+   [org.springframework.jms.support.converter SimpleMessageConverter]
    [org.springframework.jms.listener DefaultMessageListenerContainer]
    )
  )
 
-(defn- convert-message [message]
-  (cond
-    (instance? TextMessage message)
-    (.getText message)
-    (instance? ObjectMessage message)
-    (.getObject message)
-    (instance? BytesMessage message)
-    (let [byteArray (byte-array (.getBodyLength message))] (.readBytes message byteArray) byteArray)
-    :else
-    (throw (IllegalStateException. (str "Unknown message format: " (class message))))
-    )
-  )
-
-(defn- proxy-message-creator [creator-fn obj attributes]
-  (proxy [MessageCreator] []
-    (createMessage [session]
-      (let [message (creator-fn session obj)]
-        (doseq [attribute attributes] (.setStringProperty message (attribute 0) (attribute 1)))
-        message
-        )
+(defn- proxy-message-post-processor [attributes]
+  (proxy [MessagePostProcessor] []
+    (postProcessMessage [message]
+      (doseq [attribute attributes] (.setStringProperty message (attribute 0) (attribute 1)))
+      message
       )
     )
   )
 
 (defn- proxy-message-listener [handler-fn failure-fn limit container]
-  (let [counter (atom 0)]
+  (let [counter (atom 0) converter (SimpleMessageConverter.)]
     (proxy [MessageListener] []
       (onMessage [message]
         (swap! counter inc)
-        (let [converted (convert-message message)]
+        (let [obj (.fromMessage converter message)]
           (try
-            (handler-fn converted)
-            (catch Exception ex (failure-fn {:message converted :exception ex}))
-            (finally (if (= limit @counter) (do (.stop container) (future (.shutdown container)))))
+            (handler-fn obj)
+            (catch Exception ex 
+              (failure-fn {:message obj :exception ex})
+              )
+            (finally 
+              (if (= limit @counter) (do (.stop container) (future (.shutdown container))))
+              )
             )
           )
         )
@@ -53,26 +43,15 @@
 (defn- jms-producer [connection {pubSub :pubSub :or {pubSub false}}]
   (if (nil? connection) (throw (IllegalArgumentException. "No value specified for connection!")))
   (let [template (JmsTemplate. connection)]
-    (doto template
-      (.setPubSubDomain pubSub)
-      )
+    (doto template (.setMessageConverter (SimpleMessageConverter.)) (.setPubSubDomain pubSub))
     (reify Producer
       (send-to [self destination message attributes]
-        (cond
-          (string? message)
-          (.send template destination (proxy-message-creator #(.createTextMessage %1 %2) message attributes))
-          (instance? java.io.Serializable message)
-          (.send template destination (proxy-message-creator #(.createObjectMessage %1 %2) message attributes))
-          (instance? (Class/forName "[B") message)
-          (.send template destination (proxy-message-creator #(doto (.createBytesMessage %1) (.writeBytes %2)) message attributes))
-          :else
-          (throw (IllegalStateException. (str "Unknown message format: " (class message))))
-          )
+        (.convertAndSend template destination message (proxy-message-post-processor attributes))
         )
-      (send-to [self destination message] (send-to self destination message {}))
-      )
+    (send-to [self destination message] (send-to self destination message {}))
     )
   )
+)
 
 (defn- jms-consumer [connection {endpoint :endpoint handler-fn :on-message transacted :transacted pubSub :pubSub limit :limit failure-fn :on-failure :or {pubSub false limit 0 failure-fn rethrow-on-failure}}]
   (if (nil? connection) (throw (IllegalArgumentException. "No value specified for connection!")))
@@ -86,6 +65,7 @@
       (.setMessageListener listener)
       (.setSessionTransacted transacted)
       (.setPubSubDomain pubSub)
+      (.setConcurrentConsumers 1)
       )
     (reify Consumer
       (start [self] (do (doto container (.start) (.initialize)) nil))

@@ -16,11 +16,15 @@
     (proxy [MessageListener] []
       (onMessage [message]
         (swap! counter inc)
-        (let [converted (.fromMessage converter message)]
+        (let [obj (.fromMessage converter message)]
           (try
-            (handler-fn converted)
-            (catch Exception ex (failure-fn {:message converted :exception ex}))
-            (finally (if (= limit @counter) (do (.stop container) (future (.shutdown container)))))
+            (handler-fn obj)
+            (catch Exception ex 
+              (failure-fn {:message obj :exception ex})
+              )
+            (finally 
+              (if (= limit @counter) (do (.stop container) (future (.shutdown container))))
+              )
             )
           )
         )
@@ -31,6 +35,7 @@
 (defn- rabbitmq-producer [connection]
   (if (nil? connection) (throw (IllegalArgumentException. "No value specified for connection!")))
   (let [template (RabbitTemplate. connection)]
+    (doto template (.setMessageConverter (SimpleMessageConverter.)))
     (reify Producer
       (send-to [self destination message attributes]
         (let [exchange (get destination :exchange "") routing-key (get destination :routing-key "")]
@@ -50,9 +55,10 @@
   (let [container (SimpleMessageListenerContainer.) listener (proxy-message-listener handler-fn failure-fn limit container)]
     (doto container
       (.setConnectionFactory connection)
-      (.setQueueName endpoint)
+      (.setQueueNames (into-array String (vector endpoint)))
       (.setMessageListener listener)
       (.setChannelTransacted transacted)
+      (.setConcurrentConsumers 1)
       )
     (reify Consumer
       (start [self] (do (doto container (.start) (.initialize)) nil))
@@ -67,6 +73,10 @@ It currently supports the following optional named arguments (refer to RabbitMQ 
 :username, :password."
   (if (nil? broker) (throw (IllegalArgumentException. "No value specified for broker URL!")))
   (let [factory (SingleConnectionFactory. broker)]
+    (doto factory
+      (.setUsername username)
+      (.setPassword password)
+      )
     (reify Connection
       (producer [self]
         (rabbitmq-producer factory)

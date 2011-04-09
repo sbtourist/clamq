@@ -13,9 +13,12 @@
              limit :limit
              :or {filter-fn identity failure-fn rethrow-on-failure limit 0}
              }]
-  (let [tail (producer d-connection {:pubSub d-pubSub})
-        filtered-handoff #(send-to tail destination (filter-fn %1) {})
-        head (consumer s-connection {:endpoint source :on-message filtered-handoff :transacted transacted :pubSub s-pubSub :limit limit :on-failure failure-fn})]
+  (let [tail
+        (producer d-connection {:pubSub d-pubSub})
+        filtered-unicast
+        #(send-to tail destination (filter-fn %1) {})
+        head
+        (consumer s-connection {:endpoint source :on-message filtered-unicast :transacted transacted :pubSub s-pubSub :limit limit :on-failure failure-fn})]
     (reify Pipe
       (open [self] (start head))
       (close [self] (stop head))
@@ -29,11 +32,13 @@
                    limit :limit
                    :or {limit 0}
                    }]
-  (let [filtered-multicast
+  (let [tails
+        (into {} (map #(conj [] (:endpoint %1) (producer (:connection %1) {:pubSub (get %1 :pubSub false)})) destinations))
+        filtered-multicast
         #(doseq [d destinations]
            (try
-             (let [message ((get d :filter-by identity) %1)]
-               (if (not (nil? message)) (send-to (producer (:connection d) {:pubSub (get d :pubSub false)}) (:endpoint d) message {}))
+             (let [filtered-message ((get d :filter-by identity) %1)]
+               (if (not (nil? filtered-message)) (send-to (get tails (:endpoint d)) (:endpoint d) filtered-message {}))
                )
              (catch Exception ex ((get d :on-failure rethrow-on-failure) {:exception ex :message %1}))
              )
