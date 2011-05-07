@@ -1,4 +1,4 @@
-# Clamq - Version 0.2 - Work In Progress
+# Clamq - Version 0.2
 
 Clamq is a Clojure adapter for interacting with message queues, providing simple APIs to connect to brokers and sending/consuming messages to/from message queues and topics.
 
@@ -28,7 +28,7 @@ Where:
 Here is how to connect to an ActiveMQ broker:
 
     (ns clamq.test (:use [clamq.activemq] [clamq.jms] [clamq.protocol]))
-    (def connection (jms-connection (activemq-connection broker-uri)))
+    (def connection (jms-connection (activemq broker-uri)))
 
 Where:
 
@@ -162,4 +162,4 @@ Once defined, you can open/close pipes to let messages flow:
 
 ## Feedback
 
-Feel free to open your issues on the project tracker and contact me on twitter: [sbtourist](http://twitter.com/sbtourist)
+Feel free to open issues on the project tracker, and/or contact me on twitter: [sbtourist](http://twitter.com/sbtourist)
