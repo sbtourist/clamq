@@ -38,7 +38,7 @@
     (doto template (.setMessageConverter (SimpleMessageConverter.)))
     (reify Producer
       (send-to [self destination message attributes]
-        (let [exchange (get destination :exchange "") routing-key (get destination :routing-key "")]
+        (let [exchange (get destination :exchange "") routing-key (get destination :routing-key destination)]
           (.convertAndSend template exchange routing-key message)
           )
         )
