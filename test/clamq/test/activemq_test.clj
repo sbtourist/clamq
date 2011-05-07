@@ -3,7 +3,7 @@
  )
 
 (defn setup-connection-and-test [test-fn]
-  (let [connection (jms-connection (activemq-connection "tcp://localhost:61616"))]
+  (let [connection (jms-connection (activemq "tcp://localhost:61616"))]
     (test-fn connection)
     )
   )
