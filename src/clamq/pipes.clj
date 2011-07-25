@@ -13,15 +13,15 @@
              limit :limit
              :or {filter-fn identity failure-fn rethrow-on-failure limit 0}
              }]
-  (let [tail
+  (let [tail-producer
         (producer d-connection {:pubSub d-pubSub})
         filtered-unicast
-        #(send-to tail destination (filter-fn %1) {})
-        head
+        #(send-to tail-producer destination (filter-fn %1) {})
+        head-consumer
         (consumer s-connection {:endpoint source :on-message filtered-unicast :transacted transacted :pubSub s-pubSub :limit limit :on-failure failure-fn})]
     (reify Pipe
-      (open [self] (start head))
-      (close [self] (stop head))
+      (open [self] (start head-consumer))
+      (close [self] (stop head-consumer))
       )
     )
   )
@@ -32,23 +32,23 @@
                    limit :limit
                    :or {limit 0}
                    }]
-  (let [tails
-        (into {} (map #(conj [] (:endpoint %1) (producer (:connection %1) {:pubSub (get %1 :pubSub false)})) destinations))
+  (let [tail-producers
+        (into {} (map #(conj [] (%1 :endpoint) (producer (%1 :connection) {:pubSub (or (%1 :pubSub) false)})) destinations))
         filtered-multicast
         #(doseq [d destinations]
            (try
-             (let [filtered-message ((get d :filter-by identity) %1)]
-               (if (not (nil? filtered-message)) (send-to (get tails (:endpoint d)) (:endpoint d) filtered-message {}))
+             (let [filtered-message ((or (d :filter-by) identity) %1)]
+               (when (not (nil? filtered-message)) (send-to (tail-producers (d :endpoint)) (d :endpoint) filtered-message {}))
                )
-             (catch Exception ex ((get d :on-failure rethrow-on-failure) {:exception ex :message %1}))
+             (catch Exception ex ((or (d :on-failure) rethrow-on-failure) {:exception ex :message %1}))
              )
            )
-        head
+        head-consumer
         (consumer s-connection {:endpoint source :on-message filtered-multicast :transacted transacted :pubSub s-pubSub :limit limit})
         ]
     (reify Pipe
-      (open [self] (start head))
-      (close [self] (stop head))
+      (open [self] (start head-consumer))
+      (close [self] (stop head-consumer))
       )
     )
   )

@@ -6,7 +6,7 @@
 
                 [org.springframework/spring-context "3.0.5.RELEASE"]
                 [org.springframework/spring-jms "3.0.5.RELEASE"]
-                [org.springframework.amqp/spring-amqp "1.0.0.RC1"
+                [org.springframework.amqp/spring-amqp "1.0.0.RC2"
                  :exclusions
                  [commons-logging/commons-logging-api
                   commons-logging/commons-logging
@@ -17,7 +17,7 @@
                   ]
                  ]
 
-                [org.apache.activemq/activemq-core "5.4.0"
+                [org.apache.activemq/activemq-core "5.5.0"
                  :exclusions
                  [org.apache.activemq/kahadb
                   org.apache.activemq.protobuf/activemq-protobuf
@@ -26,8 +26,8 @@
                   commons-logging/commons-logging-api
                   commons-logging/commons-logging]
                  ]
-                [org.apache.activemq/activemq-pool "5.4.0"]
-                [org.springframework.amqp/spring-rabbit "1.0.0.RC1"
+                [org.apache.activemq/activemq-pool "5.5.0"]
+                [org.springframework.amqp/spring-rabbit "1.0.0.RC2"
                  :exclusions
                  [commons-logging/commons-logging-api
                   commons-logging/commons-logging

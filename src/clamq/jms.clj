@@ -23,25 +23,14 @@
   (let [counter (atom 0) converter (SimpleMessageConverter.)]
     (proxy [MessageListener] []
       (onMessage [message]
-        (swap! counter inc)
-        (let [obj (.fromMessage converter message)]
-          (try
-            (handler-fn obj)
-            (catch Exception ex 
-              (failure-fn {:message obj :exception ex})
-              )
-            (finally 
-              (if (= limit @counter) (do (.stop container) (future (.shutdown container))))
-              )
-            )
-          )
+        (process (.fromMessage converter message) container handler-fn failure-fn limit counter)
         )
       )
     )
   )
 
 (defn- jms-producer [connection {pubSub :pubSub :or {pubSub false}}]
-  (if (nil? connection) (throw (IllegalArgumentException. "No value specified for connection!")))
+  (when (nil? connection) (throw (IllegalArgumentException. "No value specified for connection!")))
   (let [template (JmsTemplate. connection)]
     (doto template (.setMessageConverter (SimpleMessageConverter.)) (.setPubSubDomain pubSub))
     (reify Producer
@@ -54,10 +43,10 @@
 )
 
 (defn- jms-consumer [connection {endpoint :endpoint handler-fn :on-message transacted :transacted pubSub :pubSub limit :limit failure-fn :on-failure :or {pubSub false limit 0 failure-fn rethrow-on-failure}}]
-  (if (nil? connection) (throw (IllegalArgumentException. "No value specified for connection!")))
-  (if (nil? endpoint) (throw (IllegalArgumentException. "No value specified for :endpoint!")))
-  (if (nil? transacted) (throw (IllegalArgumentException. "No value specified for :transacted!")))
-  (if (nil? handler-fn) (throw (IllegalArgumentException. "No value specified for :on-message!")))
+  (when (nil? connection) (throw (IllegalArgumentException. "No value specified for connection!")))
+  (when (nil? endpoint) (throw (IllegalArgumentException. "No value specified for :endpoint!")))
+  (when (nil? transacted) (throw (IllegalArgumentException. "No value specified for :transacted!")))
+  (when (nil? handler-fn) (throw (IllegalArgumentException. "No value specified for :on-message!")))
   (let [container (DefaultMessageListenerContainer.) listener (proxy-message-listener handler-fn failure-fn limit container)]
     (doto container
       (.setConnectionFactory connection)

@@ -1,27 +1,21 @@
 (ns clamq.test.rabbitmq-test
  (:use [clojure.test] [clamq.protocol] [clamq.rabbitmq] [clamq.pipes])
- (:import [org.springframework.amqp.core Binding Exchange Queue DirectExchange FanoutExchange TopicExchange] [org.springframework.amqp.rabbit.connection SingleConnectionFactory] [org.springframework.amqp.rabbit.core RabbitAdmin])
+ (:import [org.springframework.amqp.core BindingBuilder Exchange Queue DirectExchange FanoutExchange TopicExchange] [org.springframework.amqp.rabbit.connection SingleConnectionFactory] [org.springframework.amqp.rabbit.core RabbitAdmin])
  )
 
 (def admin (RabbitAdmin. (SingleConnectionFactory. "localhost")))
 (def connection (rabbitmq-connection "localhost"))
 
 (defn- declareQueue [queue]
-  (.declareQueue admin (Queue. queue))
-  (.declareExchange admin (DirectExchange. queue))
-  (.declareBinding admin (Binding. (Queue. queue) (DirectExchange. queue) queue))
+  (.declareBinding admin (.. BindingBuilder (bind (Queue. queue)) (to (DirectExchange. queue)) (with queue)))
   )
 
 (defn- declareTopic [queue]
-  (.declareQueue admin (Queue. queue))
-  (.declareExchange admin (TopicExchange. queue))
-  (.declareBinding admin (Binding. (Queue. queue) (TopicExchange. queue) queue))
+  (.declareBinding admin (.. BindingBuilder (bind (Queue. queue)) (to (TopicExchange. queue)) (with queue)))
   )
 
 (defn- declareFanout [queue]
-  (.declareQueue admin (Queue. queue))
-  (.declareExchange admin (FanoutExchange. queue))
-  (.declareBinding admin (Binding. (Queue. queue) (FanoutExchange. queue)))
+  (.declareBinding admin (.. BindingBuilder (bind (Queue. queue)) (to (FanoutExchange. queue))))
   )
 
 (deftest producer-consumer-direct-test
