@@ -1,6 +1,6 @@
-# Clamq - Version 0.2
+# Clamq - Clojure APIs for Message Queues - Version 0.3 (WORK IN PROGRESS)
 
-Clamq is a Clojure adapter for interacting with message queues, providing simple APIs to connect to brokers and sending/consuming messages to/from message queues and topics.
+Clamq is a Clojure adpater for interacting with message queues, providing simple APIs to connect to brokers and sending/consuming messages to/from message queues and topics.
 
 Clamq supports **JMS** and **AMQP** brokers, more specifically:
 
@@ -119,26 +119,33 @@ Once defined, start/stop consuming as follows:
 
 ## Pipes and Filters APIs
 
-## Creating Pipes
+## Pipes
 
 Pipes define a conduit between source and destination endpoints, which can be different queues/topics belonging to different brokers.
 Each message flowing between endpoints in a pipe is filtered by a filter function, and eventually processed by a failure function in case of errors.
 
-Clamq provides two different kind of pipes: unicast pipes, connecting two single endpoints, and multicast pipes, connecting a source endpoint with multiple destination endpoints.
+Clamq provides different kind of pipes:
 
-**Unicast** pipes are defined as follows:
+**Unicast** pipes, connecting two single endpoints:
 
     (ns clamq.test (:use [clamq.protocol] [clamq.pipes]))
     (def pipe (pipe {
       :from {:connection connection :endpoint source :pubSub pubSub}
       :to {:connection connection :endpoint destination} :transacted true :pubSub pubSub :limit limit :filter-by filter-fn :on-failure failure-fn}))
 
-**Multicast** pipes are pretty similar, except they get an array of destinations:
+**Multicast** pipes, connecting a source endpoint with multiple destination endpoints:
 
     (ns clamq.test (:use [clamq.protocol] [clamq.pipes]))
     (def pipe (multi-pipe {
       :from {:connection connection :endpoint source :pubSub pubSub}
-      :to [{:connection connection :endpoint destination1 :pubSub pubSub :limit limit :filter-by filter-fn :on-failure failure-fn}] :transacted true}))
+      :to [{:connection connection :endpoint destination1 :pubSub pubSub :filter-by filter-fn }] :transacted true :limit limit :on-failure failure-fn}))
+
+**Router** pipes, connecting a source endpoint with one or more destination endpoints dynamically defined by a router function:
+
+    (ns clamq.test (:use [clamq.protocol] [clamq.pipes]))
+    (def pipe (router-pipe {
+      :from {:connection connection :endpoint source :pubSub pubSub}
+      :route-with router-fn :transacted true :limit limit :on-failure failure-fn}))
 
 Where:
 
@@ -146,19 +153,39 @@ Where:
 * **:endpoint** is the definition of a JMS or AMQP message queue endpoint as previously described.
 * **:transacted** defines (true/false) if the message consumption must be transactional.
 * **:limit** defines the max number of flowing messages, after which the pipe stops consuming messages (optional: defaults to 0, unlimited).
-* **:filter-by** defines the name of the filter function (optional, defaults to identity function).
-* **:on-failure** defines a function called in case of exception during message handling (optional: by default the exception is just rethrown).
 * **:pubSub** defines if messages are from/to a topic (valid only for JMS brokers, defaults to false).
+* **:filter-by** defines the name of the filter function (optional, defaults to identity function).
+* **:on-failure** defines a function called in case of exceptions during message handling (optional: by default the exception is just rethrown).
+* **:route-with** defines the name of the router function (only for router pipes, and mandatory).
 
 Once defined, you can open/close pipes to let messages flow:
 
     (open pipe)
     (close pipe)
 
+## Filters
+
+Pipes come with three types of filter functions, as previously cited:
+
+Standard filter functions, configured under the **:filter-by** key, which takes the consumed message and returns an eventually processed message:
+
+    (defn my-identity-filter [message] message)
+
+Router filters, configured under the **:route-with** key, which takes the consumed message and returns a vector of maps,
+each containing the message to route, the destination endpoint and the destination connection:
+
+    (defn my-router [message] {:message message :endpoint destination :connection connection-object})
+
+Finally, failure filters, configured under the :on-failure key, fired in case of exceptions during message handling and taking a map containing the
+handled message (:message) and the raised exception (:exception):
+
+    (defn my-failure-handler [failure] (println "Message: " (failure :message)) (println "Exception: " (failure :exception)))
+
 ## Examples
 
-* clamq/test/activemq_test.clj
-* clamq/test/rabbitmq_test.clj
+* clamq/test/base\_jms\_test.clj
+* clamq/test/activemq\_test.clj
+* clamq/test/rabbitmq\_test.clj
 
 ## Feedback
 
