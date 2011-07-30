@@ -1,5 +1,5 @@
-(defproject clamq "0.2"
- :description "Clojure Adapter for Message Queues"
+(defproject clamq "0.3-SNAPSHOT"
+ :description "Clojure APIs for Message Queues"
  :dependencies [
                 [org.clojure/clojure "1.2.1"]
                 [org.clojure/clojure-contrib "1.2.0"]
