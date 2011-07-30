@@ -62,6 +62,7 @@
                     limit :limit
                     :or {failure-fn rethrow-on-failure limit 0}
                     }]
+  (when (nil? router-fn) (throw (IllegalArgumentException. "No value specified for :route-with router function!")))
   (let [memoized-producer
         (memoize make-producer)
         routed-multicast
