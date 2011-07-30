@@ -20,4 +20,7 @@
   (setup-connection-and-test multi-pipe-test)
   (setup-connection-and-test multi-pipe-topic-test)
   (setup-connection-and-test multi-pipe-limit-test)
+  (setup-connection-and-test router-pipe-test)
+  (setup-connection-and-test router-pipe-topic-test)
+  (setup-connection-and-test router-pipe-limit-test)
   )

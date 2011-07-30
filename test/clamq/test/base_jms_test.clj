@@ -215,3 +215,88 @@
     (is (= limit @received2))
     )
   )
+
+(defn router-pipe-test [connection]
+  (let [queue1 "router-pipe-test-queue1"
+        queue2 "router-pipe-test-queue2"
+        queue3 "router-pipe-test-queue3"
+        received1 (atom "")
+        received2 (atom "")
+        consumer1 (consumer connection {:endpoint queue2 :on-message #(reset! received1 %1) :transacted true})
+        consumer2 (consumer connection {:endpoint queue3 :on-message #(reset! received2 %1) :transacted true})
+        producer (producer connection)
+        router-fn #(if (= "router-pipe-test2" %1) [{:connection connection :endpoint queue2 :message %1}] [{:connection connection :endpoint queue3 :message %1}])
+        test-pipe (router-pipe {:from {:connection connection :endpoint queue1} :route-with router-fn :transacted true})
+        test-message1 "router-pipe-test2"
+        test-message2 "router-pipe-test3"]
+    (start consumer1)
+    (start consumer2)
+    (send-to producer queue1 test-message1)
+    (send-to producer queue1 test-message2)
+    (open test-pipe)
+    (Thread/sleep 1000)
+    (close test-pipe)
+    (stop consumer2)
+    (stop consumer1)
+    (is (= test-message1 @received1))
+    (is (= test-message2 @received2))
+    )
+  )
+
+(defn router-pipe-topic-test [connection]
+  (let [topic1 "router-pipe-topic-test-topic1"
+        topic2 "router-pipe-topic-test-topic2"
+        topic3 "router-pipe-topic-test-topic3"
+        received1 (atom "")
+        received2 (atom "")
+        consumer1 (consumer connection {:endpoint topic2 :on-message #(reset! received1 %1) :transacted true :pubSub true})
+        consumer2 (consumer connection {:endpoint topic3 :on-message #(reset! received2 %1) :transacted true :pubSub true})
+        producer (producer connection {:pubSub true})
+        router-fn #(if (= "router-pipe-topic-test-topic2" %1) [{:connection connection :endpoint topic2 :message %1 :pubSub true}] [{:connection connection :endpoint topic3 :message %1 :pubSub true}])
+        test-pipe (router-pipe {:from {:connection connection :endpoint topic1 :pubSub true} :route-with router-fn :transacted true})
+        test-message1 "router-pipe-topic-test-topic2"
+        test-message2 "router-pipe-topic-test-topic3"]
+    (start consumer1)
+    (start consumer2)
+    (open test-pipe)
+    (Thread/sleep 1000)
+    (send-to producer topic1 test-message1)
+    (send-to producer topic1 test-message2)
+    (Thread/sleep 1000)
+    (close test-pipe)
+    (stop consumer2)
+    (stop consumer1)
+    (is (= test-message1 @received1))
+    (is (= test-message2 @received2))
+    )
+  )
+
+(defn router-pipe-limit-test [connection]
+  (let [queue1 "router-pipe-limit-test-queue1"
+        queue2 "router-pipe-limit-test-queue2"
+        queue3 "router-pipe-limit-test-queue3"
+        received1 (atom 0)
+        received2 (atom 0)
+        consumer1 (consumer connection {:endpoint queue2 :on-message #(do (swap! received1 inc) %1) :transacted true})
+        consumer2 (consumer connection {:endpoint queue3 :on-message #(do (swap! received2 inc) %1) :transacted true})
+        producer (producer connection)
+        limit 2
+        router-fn #(if (= "router-pipe-limit-test2" %1) [{:connection connection :endpoint queue2 :message %1}] [{:connection connection :endpoint queue3 :message %1}])
+        test-pipe (router-pipe {:from {:connection connection :endpoint queue1} :route-with router-fn :transacted true :limit limit})
+        test-message1 "router-pipe-limit-test2"
+        test-message2 "router-pipe-limit-test3"]
+    (start consumer1)
+    (start consumer2)
+    (send-to producer queue1 test-message1)
+    (send-to producer queue1 test-message2)
+    (send-to producer queue1 test-message1)
+    (send-to producer queue1 test-message2)
+    (open test-pipe)
+    (Thread/sleep 1000)
+    (close test-pipe)
+    (stop consumer2)
+    (stop consumer1)
+    (is (= 1 @received1))
+    (is (= 1 @received2))
+    )
+  )
