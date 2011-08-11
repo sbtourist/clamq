@@ -3,6 +3,7 @@
 (defprotocol Connection
   (producer [self] [self conf])
   (consumer [self conf])
+  (seqable-consumer [self conf])
   )
 
 (defprotocol Producer
@@ -12,6 +13,12 @@
 (defprotocol Consumer
   (start [self])
   (stop [self])
+  )
+
+(defprotocol Seqable-Consumer
+  (seqable [self])
+  (ack [self])
+  (abort [self])
   )
 
 (defprotocol Pipe

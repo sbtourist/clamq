@@ -14,6 +14,8 @@
   (setup-connection-and-test producer-consumer-limit-test)
   (setup-connection-and-test on-failure-test)
   (setup-connection-and-test transacted-test)
+  (setup-connection-and-test seqable-consumer-test)
+  (setup-connection-and-test seqable-consumer-abort-test)
   (setup-connection-and-test pipe-test)
   (setup-connection-and-test pipe-topic-test)
   (setup-connection-and-test pipe-limit-test)

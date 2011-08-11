@@ -84,6 +84,44 @@
     )
   )
 
+(defn seqable-consumer-test [connection]
+  (let [queue "seqable-consumer-test-queue"
+        consumer (seqable-consumer connection {:endpoint queue :timeout 1000})
+        producer (producer connection)
+        test-message1 "seqable-consumer-test1"
+        test-message2 "seqable-consumer-test2"]
+    (send-to producer queue test-message1)
+    (send-to producer queue test-message2)
+    (let [result (reduce into [] (map #(do (ack consumer) [%1]) (seqable consumer)))]
+      (is (= test-message1 (result 0)))
+      (is (= test-message2 (result 1)))
+      )
+    (let [result (reduce into [] (map #(do (ack consumer) [%1]) (seqable consumer)))]
+      (is (empty? result))
+      )
+    (abort consumer)
+    )
+  )
+
+(defn seqable-consumer-abort-test [connection]
+  (let [queue "seqable-consumer-abort-test-queue"
+        consumer (seqable-consumer connection {:endpoint queue :timeout 1000})
+        producer (producer connection)
+        test-message1 "seqable-consumer-abort-test1"
+        test-message2 "seqable-consumer-abort-test2"]
+    (send-to producer queue test-message1)
+    (send-to producer queue test-message2)
+    (reduce into [] (map #(do [%1]) (seqable consumer)))
+    (abort consumer)
+    (let [consumer (seqable-consumer connection {:endpoint queue :timeout 1000})
+          result (reduce into [] (map #(do (ack consumer) [%1]) (seqable consumer)))]
+      (is (= test-message1 (result 0)))
+      (is (= test-message2 (result 1)))
+      (abort consumer)
+      )
+    )
+  )
+
 (defn pipe-test [connection]
   (let [received (atom "")
         queue1 "pipe-test-queue1"

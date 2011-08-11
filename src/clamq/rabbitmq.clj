@@ -1,8 +1,9 @@
 (ns clamq.rabbitmq
  (:use
-   [clamq.helpers] [clamq.protocol]
+   [clamq.helpers] [clamq.macros] [clamq.protocol]
    )
  (:import
+   [java.util.concurrent SynchronousQueue]
    [org.springframework.amqp.core MessageListener]
    [org.springframework.amqp.support.converter SimpleMessageConverter]
    [org.springframework.amqp.rabbit.connection SingleConnectionFactory]
@@ -10,16 +11,6 @@
    [org.springframework.amqp.rabbit.listener SimpleMessageListenerContainer]
    )
  )
-
-(defn- proxy-message-listener [handler-fn failure-fn limit container]
-  (let [counter (atom 0) converter (SimpleMessageConverter.)]
-    (proxy [MessageListener] []
-      (onMessage [message]
-        (process (.fromMessage converter message) container handler-fn failure-fn limit counter)
-        )
-      )
-    )
-  )
 
 (defn- rabbitmq-producer [connection]
   (when (nil? connection) (throw (IllegalArgumentException. "No value specified for connection!")))
@@ -41,7 +32,8 @@
   (when (nil? endpoint) (throw (IllegalArgumentException. "No value specified for :endpoint!")))
   (when (nil? transacted) (throw (IllegalArgumentException. "No value specified for :transacted!")))
   (when (nil? handler-fn) (throw (IllegalArgumentException. "No value specified for :on-message!")))
-  (let [container (SimpleMessageListenerContainer.) listener (proxy-message-listener handler-fn failure-fn limit container)]
+  (let [container (SimpleMessageListenerContainer.) 
+        listener (non-blocking-listener MessageListener onMessage (SimpleMessageConverter.) handler-fn failure-fn limit container)]
     (doto container
       (.setConnectionFactory connection)
       (.setQueueNames (into-array String (vector endpoint)))
@@ -52,6 +44,37 @@
     (reify Consumer
       (start [self] (do (doto container (.start) (.initialize)) nil))
       (stop [self] (do (.shutdown container) nil))
+      )
+    )
+  )
+
+(defn- rabbitmq-seqable-consumer [connection {endpoint :endpoint timeout :timeout :or {timeout 0}}]
+  (when (nil? connection) (throw (IllegalArgumentException. "No value specified for connection!")))
+  (when (nil? endpoint) (throw (IllegalArgumentException. "No value specified for :endpoint!")))
+  (let [request-queue (SynchronousQueue.) reply-queue (SynchronousQueue.)
+        container (SimpleMessageListenerContainer.) 
+        listener (blocking-listener MessageListener onMessage (SimpleMessageConverter.) request-queue reply-queue container)
+        ]
+    (doto container
+      (.setConnectionFactory connection)
+      (.setQueueNames (into-array String (vector endpoint)))
+      (.setMessageListener listener)
+      (.setChannelTransacted true)
+      (.setConcurrentConsumers 1)
+      (.start) 
+      (.initialize)
+      )
+    (reify Seqable-Consumer
+      (seqable [self]
+        (receiver-seq request-queue timeout)
+        )
+      (ack [self]
+        (.offer reply-queue :commit timeout java.util.concurrent.TimeUnit/MILLISECONDS)
+        )
+      (abort [self]
+        (.offer reply-queue :rollback timeout java.util.concurrent.TimeUnit/MILLISECONDS)
+        (.shutdown container)
+        )
       )
     )
   )
@@ -75,6 +98,9 @@ It currently supports the following optional named arguments (refer to RabbitMQ 
         )
       (consumer [self conf]
         (rabbitmq-consumer factory conf)
+        )
+      (seqable-consumer [self conf]
+        (rabbitmq-seqable-consumer factory conf)
         )
       )
     )

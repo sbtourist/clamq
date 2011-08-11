@@ -7,14 +7,20 @@
 (def connection (rabbitmq-connection "localhost"))
 
 (defn- declareQueue [queue]
+  (.declareQueue admin (Queue. queue))
+  (.declareExchange admin (DirectExchange. queue))
   (.declareBinding admin (.. BindingBuilder (bind (Queue. queue)) (to (DirectExchange. queue)) (with queue)))
   )
 
 (defn- declareTopic [queue]
+  (.declareQueue admin (Queue. queue))
+  (.declareExchange admin (TopicExchange. queue))
   (.declareBinding admin (.. BindingBuilder (bind (Queue. queue)) (to (TopicExchange. queue)) (with queue)))
   )
 
 (defn- declareFanout [queue]
+  (.declareQueue admin (Queue. queue))
+  (.declareExchange admin (FanoutExchange. queue))
   (.declareBinding admin (.. BindingBuilder (bind (Queue. queue)) (to (FanoutExchange. queue))))
   )
 
@@ -121,6 +127,47 @@
     (Thread/sleep 1000)
     (stop working-consumer)
     (is (= test-message @received))
+    )
+  )
+
+(deftest seqable-consumer-test
+  (let [queue "seqable-consumer-test-queue"
+        producer (producer connection)
+        test-message1 "seqable-consumer-test1"
+        test-message2 "seqable-consumer-test2"]
+    (declareQueue queue)
+    (send-to producer {:exchange queue :routing-key queue} test-message1)
+    (send-to producer {:exchange queue :routing-key queue} test-message2)
+    (let [consumer (seqable-consumer connection {:endpoint queue :timeout 1000})
+          result (reduce into [] (map #(do (ack consumer) [%1]) (seqable consumer)))]
+      (is (= test-message1 (result 0)))
+      (is (= test-message2 (result 1)))
+      (let [result (reduce into [] (map #(do (ack consumer) [%1]) (seqable consumer)))]
+        (is (empty? result))
+        )
+      (abort consumer)
+      )
+    )
+  )
+
+(deftest seqable-consumer-abort-test
+  (let [queue "seqable-consumer-abort-test-queue"
+        producer (producer connection)
+        test-message1 "seqable-consumer-abort-test1"
+        test-message2 "seqable-consumer-abort-test2"]
+    (declareQueue queue)
+    (send-to producer {:exchange queue :routing-key queue} test-message1)
+    (send-to producer {:exchange queue :routing-key queue} test-message2)
+    (let [consumer (seqable-consumer connection {:endpoint queue :timeout 1000})]
+      (reduce into [] (map #(do [%1]) (seqable consumer)))
+      (abort consumer)
+      (let [consumer (seqable-consumer connection {:endpoint queue :timeout 1000})
+            result (reduce into [] (map #(do (ack consumer) [%1]) (seqable consumer)))]
+        (is (= test-message1 (result 0)))
+        (is (= test-message2 (result 1)))
+        (abort consumer)
+        )
+      )
     )
   )
 
