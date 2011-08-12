@@ -6,7 +6,7 @@
 
                 [org.springframework/spring-context "3.0.5.RELEASE"]
                 [org.springframework/spring-jms "3.0.5.RELEASE"]
-                [org.springframework.amqp/spring-amqp "1.0.0.RC2"
+                [org.springframework.amqp/spring-amqp "1.0.0.RC3"
                  :exclusions
                  [commons-logging/commons-logging-api
                   commons-logging/commons-logging
@@ -27,7 +27,7 @@
                   commons-logging/commons-logging]
                  ]
                 [org.apache.activemq/activemq-pool "5.5.0"]
-                [org.springframework.amqp/spring-rabbit "1.0.0.RC2"
+                [org.springframework.amqp/spring-rabbit "1.0.0.RC3"
                  :exclusions
                  [commons-logging/commons-logging-api
                   commons-logging/commons-logging
