@@ -92,7 +92,7 @@
     )
   )
 
-(defn jms-connection [connectionFactory]
+(defn jms-connection [connectionFactory close-fn]
   "Returns a JMS Connection from the given javax.jms.ConnectionFactory object."
   (reify connection/Connection
     (producer [self]
@@ -106,6 +106,9 @@
       )
     (seqable [self conf]
       (jms-seqable-consumer connectionFactory conf)
+      )
+    (close [self]
+      (close-fn)
       )
     )
   )

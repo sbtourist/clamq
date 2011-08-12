@@ -49,7 +49,7 @@
       )
     (reify consumer/Consumer
       (start [self] (do (doto container (.start) (.initialize)) nil))
-      (close [self] (do (.shutdown container) nil))
+      (close [self] (do (.stop container) nil))
       )
     )
   )
@@ -107,6 +107,9 @@ It currently supports the following optional named arguments (refer to RabbitMQ 
         )
       (seqable [self conf]
         (rabbitmq-seqable-consumer factory conf)
+        )
+      (close [self]
+        (.destroy factory)
         )
       )
     )

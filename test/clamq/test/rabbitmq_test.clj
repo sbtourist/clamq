@@ -13,8 +13,7 @@
  (:import [org.springframework.amqp.core BindingBuilder Exchange Queue DirectExchange FanoutExchange TopicExchange] [org.springframework.amqp.rabbit.connection SingleConnectionFactory] [org.springframework.amqp.rabbit.core RabbitAdmin])
  )
 
-(def admin (RabbitAdmin. (SingleConnectionFactory. "localhost")))
-(def connection (rabbitmq-connection "localhost"))
+(defonce admin (RabbitAdmin. (SingleConnectionFactory. "localhost")))
 
 (defn- declareQueue [queue]
   (.declareQueue admin (Queue. queue))
@@ -34,7 +33,7 @@
   (.declareBinding admin (.. BindingBuilder (bind (Queue. queue)) (to (FanoutExchange. queue))))
   )
 
-(deftest producer-consumer-direct-test
+(defn- producer-consumer-direct-test [connection]
   (let [received (atom "")
         queue "producer-consumer-direct-test-queue"
         consumer (connection/consumer connection {:endpoint queue :on-message #(reset! received %1) :transacted false})
@@ -49,7 +48,7 @@
     )
   )
 
-(deftest producer-consumer-topic-test
+(defn- producer-consumer-topic-test [connection]
   (let [received (atom "")
         queue "producer-consumer-topic-test-queue"
         consumer (connection/consumer connection {:endpoint queue :on-message #(reset! received %1) :transacted false})
@@ -65,7 +64,7 @@
     )
   )
 
-(deftest producer-consumer-fanout-test
+(defn- producer-consumer-fanout-test [connection]
   (let [received (atom "")
         queue "producer-consumer-fanout-test-queue"
         consumer (connection/consumer connection {:endpoint queue :on-message #(reset! received %1) :transacted false})
@@ -81,7 +80,7 @@
     )
   )
 
-(deftest producer-consumer-limit-test
+(defn- producer-consumer-limit-test [connection]
   (let [received (atom 0)
         queue "producer-consumer-limit-test-queue"
         messages 5
@@ -98,7 +97,7 @@
     )
   )
 
-(deftest on-failure-test
+(defn- on-failure-test [connection]
   (let [received (atom "")
         queue "on-failure-test-queue"
         dlq "on-failure-test-dlq"
@@ -120,7 +119,7 @@
     )
   )
 
-(deftest transacted-test
+(defn- transacted-test [connection]
   (let [received (atom "")
         queue "transacted-test-queue"
         failing-consumer (connection/consumer connection {:endpoint queue :on-message #(throw (RuntimeException. %1)) :transacted true})
@@ -140,7 +139,7 @@
     )
   )
 
-(deftest seqable-consumer-test
+(defn- seqable-consumer-test [connection]
   (let [queue "seqable-consumer-test-queue"
         producer (connection/producer connection)
         test-message1 "seqable-consumer-test1"
@@ -160,7 +159,7 @@
     )
   )
 
-(deftest seqable-consumer-close-test
+(defn- seqable-consumer-close-test [connection]
   (let [queue "seqable-consumer-close-test-queue"
         producer (connection/producer connection)
         test-message1 "seqable-consumer-close-test1"
@@ -181,7 +180,7 @@
     )
   )
 
-(deftest pipe-test
+(defn- pipe-test [connection]
   (let [received (atom "")
         queue1 "pipe-test-queue1"
         queue2 "pipe-test-queue2"
@@ -201,7 +200,7 @@
     )
   )
 
-(deftest multi-pipe-test
+(defn- multi-pipe-test [connection]
   (let [queue1 "multi-pipe-test-queue1"
         queue2 "multi-pipe-test-queue2"
         queue3 "multi-pipe-test-queue3"
@@ -228,7 +227,7 @@
     )
   )
 
-(defn router-pipe-test [connection]
+(defn- router-pipe-test [connection]
   (let [queue1 "router-pipe-test-queue1"
         queue2 "router-pipe-test-queue2"
         queue3 "router-pipe-test-queue3"
@@ -256,4 +255,24 @@
     (is (= test-message1 @received1))
     (is (= test-message2 @received2))
     )
+  )
+
+(defn setup-connection-and-test [test-fn]
+  (with-open [connection (rabbitmq-connection "localhost")]
+    (test-fn connection)
+    )
+  )
+
+(deftest rabbitmq-test-suite []
+  (setup-connection-and-test producer-consumer-direct-test)
+  (setup-connection-and-test producer-consumer-topic-test)
+  (setup-connection-and-test producer-consumer-fanout-test)
+  (setup-connection-and-test producer-consumer-limit-test)
+  (setup-connection-and-test on-failure-test)
+  (setup-connection-and-test transacted-test)
+  (setup-connection-and-test seqable-consumer-test)
+  (setup-connection-and-test seqable-consumer-close-test)
+  (setup-connection-and-test pipe-test)
+  (setup-connection-and-test multi-pipe-test)
+  (setup-connection-and-test router-pipe-test)
   )

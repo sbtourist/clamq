@@ -4,4 +4,5 @@
   (producer [self] [self conf])
   (consumer [self conf])
   (seqable [self conf])
+  (close [self])
   )
