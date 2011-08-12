@@ -140,8 +140,7 @@ In order to use synchronous message consumers, you need the following namespaces
 
     (use 'clamq.protocol.seqable)
 
-Synchronous message consumers are based on the Clojure sequence abstraction, and they actually behave like lazy sequences,
-consuming messages only when actually requested to do so.
+Synchronous message consumers are based on Clojure lazy sequences, consuming messages only when actually requested to do so.
 
 First you need to define a synchronous consumer as follows:
 
@@ -161,7 +160,8 @@ Now you can obtain the message sequence:
 
     (seqc consumer)
 
-In order to advance with message consumption, you need to acknowledge the current message to the consumer:
+In order to advance with message consumption, you need to acknowledge the current message to the consumer, otherwise if trying to access another message without
+first acknowledging, the consumer will simply time out and return nil:
 
     (ack consumer)
 
