@@ -26,6 +26,7 @@
      (~listener-method [~'message]
        (.put ~request-queue (.fromMessage ~converter ~'message))
        (loop []
+         ; Is spinning really the better option?
          (let [~'m (.poll ~reply-queue 1000 java.util.concurrent.TimeUnit/MILLISECONDS)]
            (cond 
              (and (nil? ~'m) (.isRunning ~container)) (recur)

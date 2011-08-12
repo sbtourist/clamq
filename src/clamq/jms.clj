@@ -82,10 +82,13 @@
         (utils/receiver-seq request-queue timeout)
         )
       (ack [self]
-        (.offer reply-queue :commit timeout java.util.concurrent.TimeUnit/MILLISECONDS)
+        (when-not (.offer reply-queue :commit 10 java.util.concurrent.TimeUnit/SECONDS)
+          (.shutdown container)
+          (throw (IllegalStateException. "Unable to ack message, failing fast by shutting down consumer."))
+          )
         )
       (close [self]
-        (.offer reply-queue :rollback timeout java.util.concurrent.TimeUnit/MILLISECONDS)
+        (.offer reply-queue :rollback 5 java.util.concurrent.TimeUnit/SECONDS)
         (.shutdown container)
         )
       )
