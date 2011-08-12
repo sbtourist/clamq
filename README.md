@@ -12,23 +12,32 @@ Clamq supports **JMS** and **AMQP** brokers, more specifically:
 
 ## Connecting to brokers
 
+Connection to your preferred broker is the first mandatory step in order to interact with your message queues.
+
 ### Generic JMS
 
-Here is how to connect to a generic JMS broker:
+In order to connect to generic JMS brokers you need the following namespaces:
 
-    (ns clamq.test (:use [clamq.jms] [clamq.protocol]))
-    (def connection (jms-connection connection-factory))
+    (use 'clamq.protocol.connection 'clamq.jms)
+
+Now you can connect to a generic JMS broker as follows:
+
+    (jms-connection connection-factory close-fn)
 
 Where:
 
 * **connection-factory** is a *javax.jmsConnectionFactory* object.
+* **close-fn** is a no-arg function invoked when closing the connection, whose implementation must be provided in order to properly close the connection factory and its connection.
 
 ### ActiveMQ
 
-Here is how to connect to an ActiveMQ broker:
+In order to connect to an ActiveMQ broker you need the following namespaces:
 
-    (ns clamq.test (:use [clamq.activemq] [clamq.jms] [clamq.protocol]))
-    (def connection (jms-connection (activemq broker-uri)))
+    (use 'clamq.protocol.connection 'clamq.activemq)
+
+Now you can connect as follows:
+
+    (activemq-connection broker-uri)
 
 Where:
 
@@ -38,14 +47,16 @@ It also supports the following optional keyed parameters:
 
 * **:username** : the username for broker authentication.
 * **:password** : the password for broker authentication.
-* **:max-connection** : the max number of allowed connections.
 
 ### RabbitMQ
 
-Here is how to connect to a RabbitMQ broker:
+In order to connect to a RabbitMQ broker you need the following namespaces:
 
-    (ns clamq.test (:use [clamq.rabbitmq] [clamq.jms] [clamq.protocol]))
-    (def connection (rabbitmq-connection broker-host))
+    (use 'clamq.protocol.connection 'clamq.rabbitmq)
+
+Now you can connect as follows:
+
+    (rabbitmq-connection broker-host)
 
 Where:
 
@@ -58,12 +69,15 @@ It also supports the following optional keyed parameters:
 
 ## Producer/Consumer APIs
 
-### Producing messages
+### Message producers
 
-After the connection definition as previously described, define a producer as follows:
+In order to start producing messages, you need the following namespaces:
 
-    (ns clamq.test (:use [clamq.protocol]))
-    (def producer (producer connection configuration))
+    (use 'clamq.protocol.producer)
+
+Now you can define a producer as follows:
+
+    (producer connection configuration)
 
 Where:
 
@@ -76,7 +90,7 @@ The configuration map currently supports the following keys:
 
 Once defined, the producer can be used to send messages as follows:
 
-    (send-to producer endpoint message attributes)
+    (publish producer endpoint message attributes)
 
 Where:
 
@@ -88,12 +102,15 @@ Where:
 The **endpoint** definition depends on the actual broker:
 for JMS brokers, it is just the queue/topic name, for AMQP brokers it is a map containing two entries, *:exchange* and *:routing-key*.
 
-### Consuming messages
+### Asynchronous message consumers
 
-After the connection definition as previously described, define a consumer as follows:
+In order to use asynchronous message consumers, you need the following namespaces:
 
-    (ns clamq.test (:use [clamq.protocol]))
-    (def consumer (consumer connection configuration))
+    (use 'clamq.protocol.consumer)
+
+Now you can define an asynchronous consumer as follows:
+
+    (consumer connection configuration)
 
 Where:
 
@@ -112,14 +129,55 @@ The configuration map currently supports the following keys (mandatory, except w
 When setting an explicit **:limit**, you're strongly suggested to also set **:transacted** to true, in order to avoid losing messages when the consumption
 is interrupted due to the reached limit.
 
-Once defined, start/stop consuming as follows:
+Once defined, asynchronous consumers can be started and closed as follows:
 
     (start consumer)
-    (stop consumer)
+    (close consumer)
+
+### Seqable (synchronous) message consumers
+
+In order to use synchronous message consumers, you need the following namespaces:
+
+    (use 'clamq.protocol.seqable)
+
+Synchronous message consumers are based on the Clojure sequence abstraction, and they actually behave like lazy sequences,
+consuming messages only when actually requested to do so.
+
+First you need to define a synchronous consumer as follows:
+
+    (def consumer (seqable connection configuration))
+
+Where:
+
+* **connection** is a broker connection obtained as previously described.
+* **configuration** is a mandatory map of configuration parameters.
+
+The configuration map currently supports the following keys (mandatory, except where differently noted):
+
+* **:endpoint** is the name of a message queue endpoint to consume from.
+* **:timeout** is the maximum time in milliseconds to wait for available message; if no new messages are found, the sequence returns nil.
+
+Now you can obtain the message sequence:
+
+    (seqc consumer)
+
+In order to advance with message consumption, you need to acknowledge the current message to the consumer:
+
+    (ack consumer)
+
+So here's a simple example about how to move all available messages from your sequable consumer to a vector:
+
+    (with-open [consumer (seqable connection {:endpoint "queue" :timeout 1000})]
+        (reduce into [] 
+            (map #(do (ack consumer) [%1]) (seqc consumer))))
+
+Finally, synchronous consumers must be closed as follows:
+
+    (close consumer)
 
 ## Pipes and Filters APIs
 
-## Pipes
+### Pipes
 
 Pipes define a conduit between source and destination endpoints, which can be different queues/topics belonging to different brokers.
 Each message flowing between endpoints in a pipe is filtered by a filter function, and eventually processed by a failure function in case of errors.
@@ -128,21 +186,21 @@ Clamq provides different kind of pipes:
 
 **Unicast** pipes, connecting two single endpoints:
 
-    (ns clamq.test (:use [clamq.protocol] [clamq.pipes]))
+    (use 'clamq.protocol.pipe 'clamq.pipes)
     (def pipe (pipe {
       :from {:connection connection :endpoint source :pubSub pubSub}
       :to {:connection connection :endpoint destination} :transacted true :pubSub pubSub :limit limit :filter-by filter-fn :on-failure failure-fn}))
 
 **Multicast** pipes, connecting a source endpoint with multiple destination endpoints:
 
-    (ns clamq.test (:use [clamq.protocol] [clamq.pipes]))
+    (use 'clamq.protocol.pipe 'clamq.pipes)
     (def pipe (multi-pipe {
       :from {:connection connection :endpoint source :pubSub pubSub}
       :to [{:connection connection :endpoint destination1 :pubSub pubSub :filter-by filter-fn }] :transacted true :limit limit :on-failure failure-fn}))
 
 **Router** pipes, connecting a source endpoint with one or more destination endpoints dynamically defined by a router function:
 
-    (ns clamq.test (:use [clamq.protocol] [clamq.pipes]))
+    (use 'clamq.protocol.pipe 'clamq.pipes)
     (def pipe (router-pipe {
       :from {:connection connection :endpoint source :pubSub pubSub}
       :route-with router-fn :transacted true :limit limit :on-failure failure-fn}))
@@ -163,7 +221,7 @@ Once defined, you can open/close pipes to let messages flow:
     (open pipe)
     (close pipe)
 
-## Filters
+### Filters
 
 Pipes come with three types of filter functions, as previously cited:
 
@@ -180,6 +238,15 @@ Finally, failure filters, configured under the :on-failure key, fired in case of
 handled message (:message) and the raised exception (:exception):
 
     (defn my-failure-handler [failure] (println "Message: " (failure :message)) (println "Exception: " (failure :exception)))
+
+## A note about resource management
+
+As you may have noted, connections, consumers and pipes provide a close function to properly free resources. So, you can use all of them in idiomatic 
+"with-open" blocks, as follows:
+
+    (with-open [connection (activemq-connection "tcp://localhost:61616")]
+        (do-something-with connection)
+        )
 
 ## Examples
 
