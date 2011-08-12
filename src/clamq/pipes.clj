@@ -1,12 +1,15 @@
 (ns clamq.pipes
- (:use
-   [clamq.helpers]
-   [clamq.protocol]
+ (:require
+   [clamq.helpers :as helpers] 
+   [clamq.protocol.connection :as connection]
+   [clamq.protocol.consumer :as consumer]
+   [clamq.protocol.producer :as producer]
+   [clamq.protocol.pipe :as pipe]
    )
  )
 
 (defn- make-producer [connection pubSub]
-  (producer connection {:pubSub pubSub})
+  (connection/producer connection {:pubSub pubSub})
   )
 
 (defn pipe [{{source :endpoint s-connection :connection s-pubSub :pubSub :or {s-pubSub false}} :from
@@ -15,17 +18,17 @@
              failure-fn :on-failure
              transacted :transacted
              limit :limit
-             :or {filter-fn identity failure-fn rethrow-on-failure limit 0}
+             :or {filter-fn identity failure-fn helpers/rethrow-on-failure limit 0}
              }]
   (let [memoized-producer
         (memoize make-producer)
         filtered-unicast
-        #(send-to (memoized-producer d-connection d-pubSub) destination (filter-fn %1) {})
+        #(producer/publish (memoized-producer d-connection d-pubSub) destination (filter-fn %1) {})
         head-consumer
-        (consumer s-connection {:endpoint source :on-message filtered-unicast :on-failure failure-fn :transacted transacted :pubSub s-pubSub :limit limit})]
-    (reify Pipe
-      (open [self] (start head-consumer))
-      (close [self] (stop head-consumer))
+        (connection/consumer s-connection {:endpoint source :on-message filtered-unicast :on-failure failure-fn :transacted transacted :pubSub s-pubSub :limit limit})]
+    (reify pipe/Pipe
+      (open [self] (consumer/start head-consumer))
+      (close [self] (consumer/close head-consumer))
       )
     )
   )
@@ -35,22 +38,22 @@
                    failure-fn :on-failure
                    transacted :transacted
                    limit :limit
-                   :or {failure-fn rethrow-on-failure limit 0}
+                   :or {failure-fn helpers/rethrow-on-failure limit 0}
                    }]
   (let [memoized-producer
         (memoize make-producer)
         filtered-multicast
         #(doseq [d destinations]
            (let [filtered-message ((or (d :filter-by) identity) %1)]
-             (when (not (nil? filtered-message)) (send-to (memoized-producer (d :connection) (or (d :pubSub) false)) (d :endpoint) filtered-message {}))
+             (when (not (nil? filtered-message)) (producer/publish (memoized-producer (d :connection) (or (d :pubSub) false)) (d :endpoint) filtered-message {}))
              )
            )
         head-consumer
-        (consumer s-connection {:endpoint source :on-message filtered-multicast :on-failure failure-fn :transacted transacted :pubSub s-pubSub :limit limit})
+        (connection/consumer s-connection {:endpoint source :on-message filtered-multicast :on-failure failure-fn :transacted transacted :pubSub s-pubSub :limit limit})
         ]
-    (reify Pipe
-      (open [self] (start head-consumer))
-      (close [self] (stop head-consumer))
+    (reify pipe/Pipe
+      (open [self] (consumer/start head-consumer))
+      (close [self] (consumer/close head-consumer))
       )
     )
   )
@@ -60,7 +63,7 @@
                     failure-fn :on-failure
                     transacted :transacted
                     limit :limit
-                    :or {failure-fn rethrow-on-failure limit 0}
+                    :or {failure-fn helpers/rethrow-on-failure limit 0}
                     }]
   (when (nil? router-fn) (throw (IllegalArgumentException. "No value specified for :route-with router function!")))
   (let [memoized-producer
@@ -73,15 +76,15 @@
                  message (d :message)
                  producer (memoized-producer connection pubSub)
                  ]
-             (when (not (nil? message)) (send-to producer endpoint message {}))
+             (when (not (nil? message)) (producer/publish producer endpoint message {}))
              )
            )
         head-consumer
-        (consumer s-connection {:endpoint source :on-message routed-multicast :on-failure failure-fn :transacted transacted :pubSub s-pubSub :limit limit})
+        (connection/consumer s-connection {:endpoint source :on-message routed-multicast :on-failure failure-fn :transacted transacted :pubSub s-pubSub :limit limit})
         ]
-    (reify Pipe
-      (open [self] (start head-consumer))
-      (close [self] (stop head-consumer))
+    (reify pipe/Pipe
+      (open [self] (consumer/start head-consumer))
+      (close [self] (consumer/close head-consumer))
       )
     )
   )

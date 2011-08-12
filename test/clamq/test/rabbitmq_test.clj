@@ -1,5 +1,15 @@
 (ns clamq.test.rabbitmq-test
- (:use [clojure.test] [clamq.protocol] [clamq.rabbitmq] [clamq.pipes])
+ (:require
+   [clamq.protocol.connection :as connection]
+   [clamq.protocol.consumer :as consumer]
+   [clamq.protocol.seqable :as seqable]
+   [clamq.protocol.producer :as producer]
+   [clamq.protocol.pipe :as pipe]
+   [clamq.pipes :as pipes]
+   )
+ (:use [clojure.test] 
+   [clamq.rabbitmq]
+   )
  (:import [org.springframework.amqp.core BindingBuilder Exchange Queue DirectExchange FanoutExchange TopicExchange] [org.springframework.amqp.rabbit.connection SingleConnectionFactory] [org.springframework.amqp.rabbit.core RabbitAdmin])
  )
 
@@ -27,14 +37,14 @@
 (deftest producer-consumer-direct-test
   (let [received (atom "")
         queue "producer-consumer-direct-test-queue"
-        consumer (consumer connection {:endpoint queue :on-message #(reset! received %1) :transacted false})
-        producer (producer connection)
+        consumer (connection/consumer connection {:endpoint queue :on-message #(reset! received %1) :transacted false})
+        producer (connection/producer connection)
         test-message "producer-consumer-test"]
     (declareQueue queue)
-    (send-to producer {:exchange queue :routing-key queue} test-message)
-    (start consumer)
+    (producer/publish producer {:exchange queue :routing-key queue} test-message)
+    (consumer/start consumer)
     (Thread/sleep 1000)
-    (stop consumer)
+    (consumer/close consumer)
     (is (= test-message @received))
     )
   )
@@ -42,15 +52,15 @@
 (deftest producer-consumer-topic-test
   (let [received (atom "")
         queue "producer-consumer-topic-test-queue"
-        consumer (consumer connection {:endpoint queue :on-message #(reset! received %1) :transacted false})
-        producer (producer connection)
+        consumer (connection/consumer connection {:endpoint queue :on-message #(reset! received %1) :transacted false})
+        producer (connection/producer connection)
         test-message "producer-consumer-topic-test"]
     (declareTopic queue)
-    (start consumer)
+    (consumer/start consumer)
     (Thread/sleep 1000)
-    (send-to producer {:exchange queue :routing-key queue} test-message)
+    (producer/publish producer {:exchange queue :routing-key queue} test-message)
     (Thread/sleep 1000)
-    (stop consumer)
+    (consumer/close consumer)
     (is (= test-message @received))
     )
   )
@@ -58,15 +68,15 @@
 (deftest producer-consumer-fanout-test
   (let [received (atom "")
         queue "producer-consumer-fanout-test-queue"
-        consumer (consumer connection {:endpoint queue :on-message #(reset! received %1) :transacted false})
-        producer (producer connection)
+        consumer (connection/consumer connection {:endpoint queue :on-message #(reset! received %1) :transacted false})
+        producer (connection/producer connection)
         test-message "producer-consumer-fanout-test"]
     (declareFanout queue)
-    (start consumer)
+    (consumer/start consumer)
     (Thread/sleep 1000)
-    (send-to producer {:exchange queue} test-message)
+    (producer/publish producer {:exchange queue} test-message)
     (Thread/sleep 1000)
-    (stop consumer)
+    (consumer/close consumer)
     (is (= test-message @received))
     )
   )
@@ -76,14 +86,14 @@
         queue "producer-consumer-limit-test-queue"
         messages 5
         limit 2
-        consumer (consumer connection {:endpoint queue :on-message #(do (swap! received inc) %1) :transacted true :limit limit})
-        producer (producer connection)
+        consumer (connection/consumer connection {:endpoint queue :on-message #(do (swap! received inc) %1) :transacted true :limit limit})
+        producer (connection/producer connection)
         test-message "producer-consumer-limit-test"]
     (declareQueue queue)
-    (loop [i 1] (send-to producer {:routing-key queue} test-message) (if (< i messages) (recur (inc i))))
-    (start consumer)
+    (loop [i 1] (producer/publish producer {:routing-key queue} test-message) (if (< i messages) (recur (inc i))))
+    (consumer/start consumer)
     (Thread/sleep 1000)
-    (stop consumer)
+    (consumer/close consumer)
     (is (= limit @received))
     )
   )
@@ -92,20 +102,20 @@
   (let [received (atom "")
         queue "on-failure-test-queue"
         dlq "on-failure-test-dlq"
-        producer (producer connection)
-        failing-consumer (consumer connection {:endpoint queue :on-message #(throw (RuntimeException. %1)) :transacted false :on-failure #(send-to producer {:exchange dlq :routing-key dlq} (:message %1) {})})
-        working-consumer (consumer connection {:endpoint dlq :on-message #(reset! received %1) :transacted true})
+        producer (connection/producer connection)
+        failing-consumer (connection/consumer connection {:endpoint queue :on-message #(throw (RuntimeException. %1)) :transacted false :on-failure #(producer/publish producer {:exchange dlq :routing-key dlq} (:message %1) {})})
+        working-consumer (connection/consumer connection {:endpoint dlq :on-message #(reset! received %1) :transacted true})
         test-message "on-failure-test"]
     (declareQueue queue)
     (declareQueue dlq)
-    (send-to producer {:exchange queue :routing-key queue} test-message)
-    (start failing-consumer)
+    (producer/publish producer {:exchange queue :routing-key queue} test-message)
+    (consumer/start failing-consumer)
     (Thread/sleep 1000)
-    (stop failing-consumer)
+    (consumer/close failing-consumer)
     (Thread/sleep 1000)
-    (start working-consumer)
+    (consumer/start working-consumer)
     (Thread/sleep 1000)
-    (stop working-consumer)
+    (consumer/close working-consumer)
     (is (= test-message @received))
     )
   )
@@ -113,59 +123,59 @@
 (deftest transacted-test
   (let [received (atom "")
         queue "transacted-test-queue"
-        failing-consumer (consumer connection {:endpoint queue :on-message #(throw (RuntimeException. %1)) :transacted true})
-        working-consumer (consumer connection {:endpoint queue :on-message #(reset! received %1) :transacted true})
-        producer (producer connection)
+        failing-consumer (connection/consumer connection {:endpoint queue :on-message #(throw (RuntimeException. %1)) :transacted true})
+        working-consumer (connection/consumer connection {:endpoint queue :on-message #(reset! received %1) :transacted true})
+        producer (connection/producer connection)
         test-message "transacted-test"]
     (declareQueue queue)
-    (send-to producer {:exchange queue :routing-key queue} test-message)
-    (start failing-consumer)
+    (producer/publish producer {:exchange queue :routing-key queue} test-message)
+    (consumer/start failing-consumer)
     (Thread/sleep 1000)
-    (stop failing-consumer)
+    (consumer/close failing-consumer)
     (Thread/sleep 1000)
-    (start working-consumer)
+    (consumer/start working-consumer)
     (Thread/sleep 1000)
-    (stop working-consumer)
+    (consumer/close working-consumer)
     (is (= test-message @received))
     )
   )
 
 (deftest seqable-consumer-test
   (let [queue "seqable-consumer-test-queue"
-        producer (producer connection)
+        producer (connection/producer connection)
         test-message1 "seqable-consumer-test1"
         test-message2 "seqable-consumer-test2"]
     (declareQueue queue)
-    (send-to producer {:exchange queue :routing-key queue} test-message1)
-    (send-to producer {:exchange queue :routing-key queue} test-message2)
-    (let [consumer (seqable-consumer connection {:endpoint queue :timeout 1000})
-          result (reduce into [] (map #(do (ack consumer) [%1]) (seqable consumer)))]
+    (producer/publish producer {:exchange queue :routing-key queue} test-message1)
+    (producer/publish producer {:exchange queue :routing-key queue} test-message2)
+    (let [consumer (connection/seqable connection {:endpoint queue :timeout 1000})
+          result (reduce into [] (map #(do (seqable/ack consumer) [%1]) (seqable/seqc consumer)))]
       (is (= test-message1 (result 0)))
       (is (= test-message2 (result 1)))
-      (let [result (reduce into [] (map #(do (ack consumer) [%1]) (seqable consumer)))]
+      (let [result (reduce into [] (map #(do (seqable/ack consumer) [%1]) (seqable/seqc consumer)))]
         (is (empty? result))
         )
-      (abort consumer)
+      (seqable/close consumer)
       )
     )
   )
 
-(deftest seqable-consumer-abort-test
-  (let [queue "seqable-consumer-abort-test-queue"
-        producer (producer connection)
-        test-message1 "seqable-consumer-abort-test1"
-        test-message2 "seqable-consumer-abort-test2"]
+(deftest seqable-consumer-close-test
+  (let [queue "seqable-consumer-close-test-queue"
+        producer (connection/producer connection)
+        test-message1 "seqable-consumer-close-test1"
+        test-message2 "seqable-consumer-close-test2"]
     (declareQueue queue)
-    (send-to producer {:exchange queue :routing-key queue} test-message1)
-    (send-to producer {:exchange queue :routing-key queue} test-message2)
-    (let [consumer (seqable-consumer connection {:endpoint queue :timeout 1000})]
-      (reduce into [] (map #(do [%1]) (seqable consumer)))
-      (abort consumer)
-      (let [consumer (seqable-consumer connection {:endpoint queue :timeout 1000})
-            result (reduce into [] (map #(do (ack consumer) [%1]) (seqable consumer)))]
+    (producer/publish producer {:exchange queue :routing-key queue} test-message1)
+    (producer/publish producer {:exchange queue :routing-key queue} test-message2)
+    (let [consumer (connection/seqable connection {:endpoint queue :timeout 1000})]
+      (reduce into [] (map #(do [%1]) (seqable/seqc consumer)))
+      (seqable/close consumer)
+      (let [consumer (connection/seqable connection {:endpoint queue :timeout 1000})
+            result (reduce into [] (map #(do (seqable/ack consumer) [%1]) (seqable/seqc consumer)))]
         (is (= test-message1 (result 0)))
         (is (= test-message2 (result 1)))
-        (abort consumer)
+        (seqable/close consumer)
         )
       )
     )
@@ -175,18 +185,18 @@
   (let [received (atom "")
         queue1 "pipe-test-queue1"
         queue2 "pipe-test-queue2"
-        consumer (consumer connection {:endpoint queue2 :on-message #(reset! received %1) :transacted true})
-        producer (producer connection)
-        test-pipe (pipe {:from {:connection connection :endpoint queue1} :to {:connection connection :endpoint {:exchange queue2 :routing-key queue2}} :transacted true})
+        consumer (connection/consumer connection {:endpoint queue2 :on-message #(reset! received %1) :transacted true})
+        producer (connection/producer connection)
+        test-pipe (pipes/pipe {:from {:connection connection :endpoint queue1} :to {:connection connection :endpoint {:exchange queue2 :routing-key queue2}} :transacted true})
         test-message "pipe-test"]
     (declareQueue queue1)
     (declareQueue queue2)
-    (start consumer)
-    (send-to producer {:exchange queue1 :routing-key queue1} test-message)
-    (open test-pipe)
+    (consumer/start consumer)
+    (producer/publish producer {:exchange queue1 :routing-key queue1} test-message)
+    (pipe/open test-pipe)
     (Thread/sleep 1000)
-    (close test-pipe)
-    (stop consumer)
+    (pipe/close test-pipe)
+    (consumer/close consumer)
     (is (= test-message @received))
     )
   )
@@ -197,22 +207,22 @@
         queue3 "multi-pipe-test-queue3"
         received1 (atom "")
         received2 (atom "")
-        consumer1 (consumer connection {:endpoint queue2 :on-message #(reset! received1 %1) :transacted true})
-        consumer2 (consumer connection {:endpoint queue3 :on-message #(reset! received2 %1) :transacted true})
-        producer (producer connection)
-        test-pipe (multi-pipe {:from {:connection connection :endpoint queue1} :to [{:connection connection :endpoint {:exchange queue2 :routing-key queue2}} {:connection connection :endpoint {:exchange queue3 :routing-key queue3}}] :transacted true})
+        consumer1 (connection/consumer connection {:endpoint queue2 :on-message #(reset! received1 %1) :transacted true})
+        consumer2 (connection/consumer connection {:endpoint queue3 :on-message #(reset! received2 %1) :transacted true})
+        producer (connection/producer connection)
+        test-pipe (pipes/multi-pipe {:from {:connection connection :endpoint queue1} :to [{:connection connection :endpoint {:exchange queue2 :routing-key queue2}} {:connection connection :endpoint {:exchange queue3 :routing-key queue3}}] :transacted true})
         test-message "multi-pipe-test"]
     (declareQueue queue1)
     (declareQueue queue2)
     (declareQueue queue3)
-    (start consumer1)
-    (start consumer2)
-    (send-to producer {:exchange queue1 :routing-key queue1} test-message)
-    (open test-pipe)
+    (consumer/start consumer1)
+    (consumer/start consumer2)
+    (producer/publish producer {:exchange queue1 :routing-key queue1} test-message)
+    (pipe/open test-pipe)
     (Thread/sleep 1000)
-    (close test-pipe)
-    (stop consumer2)
-    (stop consumer1)
+    (pipe/close test-pipe)
+    (consumer/close consumer2)
+    (consumer/close consumer1)
     (is (= test-message @received1))
     (is (= test-message @received2))
     )
@@ -224,25 +234,25 @@
         queue3 "router-pipe-test-queue3"
         received1 (atom "")
         received2 (atom "")
-        consumer1 (consumer connection {:endpoint queue2 :on-message #(reset! received1 %1) :transacted true})
-        consumer2 (consumer connection {:endpoint queue3 :on-message #(reset! received2 %1) :transacted true})
-        producer (producer connection)
+        consumer1 (connection/consumer connection {:endpoint queue2 :on-message #(reset! received1 %1) :transacted true})
+        consumer2 (connection/consumer connection {:endpoint queue3 :on-message #(reset! received2 %1) :transacted true})
+        producer (connection/producer connection)
         router-fn #(if (= "router-pipe-test2" %1) [{:connection connection :endpoint {:exchange queue2 :routing-key queue2} :message %1}] [{:connection connection :endpoint {:exchange queue3 :routing-key queue3} :message %1}])
-        test-pipe (router-pipe {:from {:connection connection :endpoint queue1} :route-with router-fn :transacted true})
+        test-pipe (pipes/router-pipe {:from {:connection connection :endpoint queue1} :route-with router-fn :transacted true})
         test-message1 "router-pipe-test2"
         test-message2 "router-pipe-test3"]
     (declareQueue queue1)
     (declareQueue queue2)
     (declareQueue queue3)
-    (start consumer1)
-    (start consumer2)
-    (send-to producer {:exchange queue1 :routing-key queue1} test-message1)
-    (send-to producer {:exchange queue1 :routing-key queue1} test-message2)
-    (open test-pipe)
+    (consumer/start consumer1)
+    (consumer/start consumer2)
+    (producer/publish producer {:exchange queue1 :routing-key queue1} test-message1)
+    (producer/publish producer {:exchange queue1 :routing-key queue1} test-message2)
+    (pipe/open test-pipe)
     (Thread/sleep 1000)
-    (close test-pipe)
-    (stop consumer2)
-    (stop consumer1)
+    (pipe/close test-pipe)
+    (consumer/close consumer2)
+    (consumer/close consumer1)
     (is (= test-message1 @received1))
     (is (= test-message2 @received2))
     )

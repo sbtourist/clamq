@@ -1,6 +1,12 @@
 (ns clamq.rabbitmq
- (:use
-   [clamq.helpers] [clamq.macros] [clamq.protocol]
+ (:require
+   [clamq.helpers :as helpers] 
+   [clamq.internal.macros :as macros]
+   [clamq.internal.utils :as utils] 
+   [clamq.protocol.connection :as connection]
+   [clamq.protocol.consumer :as consumer]
+   [clamq.protocol.seqable :as seqable]
+   [clamq.protocol.producer :as producer]
    )
  (:import
    [java.util.concurrent SynchronousQueue]
@@ -16,24 +22,24 @@
   (when (nil? connection) (throw (IllegalArgumentException. "No value specified for connection!")))
   (let [template (RabbitTemplate. connection)]
     (doto template (.setMessageConverter (SimpleMessageConverter.)))
-    (reify Producer
-      (send-to [self destination message attributes]
+    (reify producer/Producer
+      (publish [self destination message attributes]
         (let [exchange (or (destination :exchange) "") routing-key (or (destination :routing-key) "")]
           (.convertAndSend template exchange routing-key message)
           )
         )
-      (send-to [self destination message] (send-to self destination message {}))
+      (publish [self destination message] (producer/publish self destination message {}))
       )
     )
   )
 
-(defn- rabbitmq-consumer [connection {endpoint :endpoint handler-fn :on-message transacted :transacted limit :limit failure-fn :on-failure :or {limit 0 failure-fn rethrow-on-failure}}]
+(defn- rabbitmq-consumer [connection {endpoint :endpoint handler-fn :on-message transacted :transacted limit :limit failure-fn :on-failure :or {limit 0 failure-fn helpers/rethrow-on-failure}}]
   (when (nil? connection) (throw (IllegalArgumentException. "No value specified for connection!")))
   (when (nil? endpoint) (throw (IllegalArgumentException. "No value specified for :endpoint!")))
   (when (nil? transacted) (throw (IllegalArgumentException. "No value specified for :transacted!")))
   (when (nil? handler-fn) (throw (IllegalArgumentException. "No value specified for :on-message!")))
   (let [container (SimpleMessageListenerContainer.) 
-        listener (non-blocking-listener MessageListener onMessage (SimpleMessageConverter.) handler-fn failure-fn limit container)]
+        listener (macros/non-blocking-listener MessageListener onMessage (SimpleMessageConverter.) handler-fn failure-fn limit container)]
     (doto container
       (.setConnectionFactory connection)
       (.setQueueNames (into-array String (vector endpoint)))
@@ -41,9 +47,9 @@
       (.setChannelTransacted transacted)
       (.setConcurrentConsumers 1)
       )
-    (reify Consumer
+    (reify consumer/Consumer
       (start [self] (do (doto container (.start) (.initialize)) nil))
-      (stop [self] (do (.shutdown container) nil))
+      (close [self] (do (.shutdown container) nil))
       )
     )
   )
@@ -53,7 +59,7 @@
   (when (nil? endpoint) (throw (IllegalArgumentException. "No value specified for :endpoint!")))
   (let [request-queue (SynchronousQueue.) reply-queue (SynchronousQueue.)
         container (SimpleMessageListenerContainer.) 
-        listener (blocking-listener MessageListener onMessage (SimpleMessageConverter.) request-queue reply-queue container)
+        listener (macros/blocking-listener MessageListener onMessage (SimpleMessageConverter.) request-queue reply-queue container)
         ]
     (doto container
       (.setConnectionFactory connection)
@@ -64,14 +70,14 @@
       (.start) 
       (.initialize)
       )
-    (reify Seqable-Consumer
-      (seqable [self]
-        (receiver-seq request-queue timeout)
+    (reify seqable/Seqable
+      (seqc [self]
+        (utils/receiver-seq request-queue timeout)
         )
       (ack [self]
         (.offer reply-queue :commit timeout java.util.concurrent.TimeUnit/MILLISECONDS)
         )
-      (abort [self]
+      (close [self]
         (.offer reply-queue :rollback timeout java.util.concurrent.TimeUnit/MILLISECONDS)
         (.shutdown container)
         )
@@ -89,7 +95,7 @@ It currently supports the following optional named arguments (refer to RabbitMQ 
       (.setUsername username)
       (.setPassword password)
       )
-    (reify Connection
+    (reify connection/Connection
       (producer [self]
         (rabbitmq-producer factory)
         )
@@ -99,7 +105,7 @@ It currently supports the following optional named arguments (refer to RabbitMQ 
       (consumer [self conf]
         (rabbitmq-consumer factory conf)
         )
-      (seqable-consumer [self conf]
+      (seqable [self conf]
         (rabbitmq-seqable-consumer factory conf)
         )
       )

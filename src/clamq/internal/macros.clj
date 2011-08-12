@@ -1,4 +1,4 @@
-(ns clamq.macros)
+(ns clamq.internal.macros)
 
 (defmacro non-blocking-listener [listener-class listener-method converter handler-fn failure-fn limit container]
   `(let [~'counter (atom 0)]

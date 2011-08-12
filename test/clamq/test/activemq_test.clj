@@ -1,5 +1,5 @@
 (ns clamq.test.activemq-test
- (:use [clojure.test] [clamq.test.base-jms-test] [clamq.protocol] [clamq.jms] [clamq.activemq])
+ (:use [clojure.test] [clamq.test.base-jms-test] [clamq.jms] [clamq.activemq])
  )
 
 (defn setup-connection-and-test [test-fn]
@@ -15,7 +15,7 @@
   (setup-connection-and-test on-failure-test)
   (setup-connection-and-test transacted-test)
   (setup-connection-and-test seqable-consumer-test)
-  (setup-connection-and-test seqable-consumer-abort-test)
+  (setup-connection-and-test seqable-consumer-close-test)
   (setup-connection-and-test pipe-test)
   (setup-connection-and-test pipe-topic-test)
   (setup-connection-and-test pipe-limit-test)
