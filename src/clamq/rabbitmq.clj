@@ -71,7 +71,7 @@
       (.initialize)
       )
     (reify seqable/Seqable
-      (seqc [self]
+      (mseq [self]
         (utils/receiver-seq request-queue timeout)
         )
       (ack [self]

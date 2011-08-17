@@ -102,11 +102,11 @@
         test-message2 "seqable-consumer-test2"]
     (producer/publish producer queue test-message1)
     (producer/publish producer queue test-message2)
-    (let [result (reduce into [] (map #(do (seqable/ack consumer) [%1]) (seqable/seqc consumer)))]
+    (let [result (reduce into [] (map #(do (seqable/ack consumer) [%1]) (seqable/mseq consumer)))]
       (is (= test-message1 (result 0)))
       (is (= test-message2 (result 1)))
       )
-    (let [result (reduce into [] (map #(do (seqable/ack consumer) [%1]) (seqable/seqc consumer)))]
+    (let [result (reduce into [] (map #(do (seqable/ack consumer) [%1]) (seqable/mseq consumer)))]
       (is (empty? result))
       )
     (seqable/close consumer)
@@ -121,10 +121,10 @@
         test-message2 "seqable-consumer-close-test2"]
     (producer/publish producer queue test-message1)
     (producer/publish producer queue test-message2)
-    (reduce into [] (map #(do [%1]) (seqable/seqc consumer)))
+    (reduce into [] (map #(do [%1]) (seqable/mseq consumer)))
     (seqable/close consumer)
     (let [consumer (connection/seqable connection {:endpoint queue :timeout 1000})
-          result (reduce into [] (map #(do (seqable/ack consumer) [%1]) (seqable/seqc consumer)))]
+          result (reduce into [] (map #(do (seqable/ack consumer) [%1]) (seqable/mseq consumer)))]
       (is (= test-message1 (result 0)))
       (is (= test-message2 (result 1)))
       (seqable/close consumer)

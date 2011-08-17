@@ -174,7 +174,7 @@ The configuration map currently supports the following keys (mandatory, except w
 
 Now you can obtain the message sequence:
 
-    (seqc consumer)
+    (mseq consumer)
 
 In order to advance with message consumption, you need to acknowledge the current message to the consumer, otherwise if trying to access another message without
 first acknowledging, the consumer will simply time out and return nil:
@@ -185,7 +185,7 @@ So here's a simple example about how to move all available messages from your se
 
     (with-open [consumer (seqable connection {:endpoint "queue" :timeout 1000})]
         (reduce into [] 
-            (map #(do (ack consumer) [%1]) (seqc consumer))))
+            (map #(do (ack consumer) [%1]) (mseq consumer))))
 
 Finally, synchronous consumers must be closed as follows:
 

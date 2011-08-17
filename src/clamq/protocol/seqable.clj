@@ -1,7 +1,7 @@
 (ns clamq.protocol.seqable)
 
 (defprotocol Seqable
-  (seqc [self])
+  (mseq [self])
   (ack [self])
   (close [self])
   )
