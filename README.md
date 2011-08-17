@@ -150,7 +150,7 @@ Once defined, asynchronous consumers can be started and closed as follows:
     (start consumer)
     (close consumer)
 
-### Seqable (synchronous) message consumers
+### Synchronous (seqable) message consumers
 
 In order to use synchronous message consumers, you need the following namespaces:
 
