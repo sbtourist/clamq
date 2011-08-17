@@ -10,6 +10,22 @@ Clamq supports **JMS** and **AMQP** brokers, more specifically:
 * AMQP
     * [RabbitMQ](http://www.rabbitmq.com/)
 
+## Configuring dependencies
+
+Clamq can be configured in your Leiningen project file as follows:
+
+    [clamq "0.3-SNAPSHOT"]
+
+Also, depending on the broker you want to connect to, you need to declare the related dependency.
+
+For ActiveMQ:
+
+    [org.apache.activemq/activemq-core "5.5.0"]
+
+For RabbitMQ:
+
+    [org.springframework.amqp/spring-rabbit "1.0.0.RC3"]
+
 ## Connecting to brokers
 
 Connection to your preferred broker is the first mandatory step in order to interact with your message queues.
