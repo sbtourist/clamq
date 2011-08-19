@@ -1,4 +1,4 @@
-# Clamq - Clojure APIs for Message Queues - Version 0.3 (WORK IN PROGRESS)
+# Clamq - Clojure APIs for Message Queues - Version 0.3
 
 Clamq is a Clojure adpater for interacting with message queues, providing simple APIs to connect to brokers and sending/consuming messages to/from message queues and topics.
 
@@ -14,7 +14,9 @@ Clamq supports **JMS** and **AMQP** brokers, more specifically:
 
 Clamq can be configured in your Leiningen project file as follows:
 
-    [clamq "0.3-SNAPSHOT"]
+    [clamq "0.3"]
+
+It is available on Clojars, so everything should be pretty straightforward.
 
 Also, depending on the broker you want to connect to, you need to declare the related dependency.
 
@@ -118,13 +120,15 @@ Where:
 The **endpoint** definition depends on the actual broker:
 for JMS brokers, it is just the queue/topic name, for AMQP brokers it is a map containing two entries, *:exchange* and *:routing-key*.
 
-### Asynchronous message consumers
+### Message consumers
 
-In order to use asynchronous message consumers, you need the following namespaces:
+Message consumers work by asynchronously pulling messages from the queue they listen to, and processing them through a user-defined function.
+
+In order to start consuming messages, you need the following namespaces:
 
     (use 'clamq.protocol.consumer)
 
-Now you can define an asynchronous consumer as follows:
+Now you can define the consumer as follows:
 
     (consumer connection configuration)
 
@@ -136,7 +140,7 @@ Where:
 The configuration map currently supports the following keys (mandatory, except where differently noted):
 
 * **:endpoint** is the name of a message queue endpoint to consume from.
-* **:on-message** is the handler function to call at each consumed message, accepting the message itself as unique argument.
+* **:on-message** is the handler function called at each consumed message, accepting the message itself as unique argument.
 * **:transacted** defines (true/false) if the message consumption must be locally transactional.
 * **:pubSub** in only valid for JMS brokers, and defines if consumer messages are from publish/subscribe, that is, must be consumed from a topic (optional).
 * **:limit** defines the max number of consumed messages, after which the consumer stops itself (optional: defaults to 0, unlimited).
@@ -150,15 +154,15 @@ Once defined, asynchronous consumers can be started and closed as follows:
     (start consumer)
     (close consumer)
 
-### Synchronous (seqable) message consumers
+### Message sequences
 
-In order to use synchronous message consumers, you need the following namespaces:
+Message sequences are synchronous consumers based on Clojure lazy sequences, consuming messages only when actually requested to do so.
+
+In order to establish a message sequence, you need the following namespaces:
 
     (use 'clamq.protocol.seqable)
 
-Synchronous message consumers are based on Clojure lazy sequences, consuming messages only when actually requested to do so.
-
-First you need to define a synchronous consumer as follows:
+Then, you need to define a seqable consumer, which will act as the provider for the message sequence:
 
     (def consumer (seqable connection configuration))
 
@@ -187,7 +191,7 @@ So here's a simple example about how to move all available messages from your se
         (reduce into [] 
             (map #(do (ack consumer) [%1]) (mseq consumer))))
 
-Finally, synchronous consumers must be closed as follows:
+Finally, seqable consumers (with related message sequence) must be closed as follows:
 
     (close consumer)
 
