@@ -5,12 +5,9 @@
    [clamq.protocol.seqable :as seqable]
    [clamq.protocol.producer :as producer]
    [clamq.protocol.pipe :as pipe]
-   [clamq.pipes :as pipes]
-   )
+   [clamq.pipes :as pipes])
  (:use 
-   [clojure.test]
-   )
- )
+   [clojure.test]))
 
 (defn producer-consumer-test [connection]
   (let [received (atom "")
@@ -22,9 +19,7 @@
     (consumer/start consumer)
     (Thread/sleep 1000)
     (consumer/close consumer)
-    (is (= test-message @received))
-    )
-  )
+    (is (= test-message @received))))
 
 (defn producer-consumer-topic-test [connection]
   (let [received (atom "")
@@ -37,9 +32,7 @@
     (producer/publish producer topic test-message)
     (Thread/sleep 1000)
     (consumer/close consumer)
-    (is (= test-message @received))
-    )
-  )
+    (is (= test-message @received))))
 
 (defn producer-consumer-limit-test [connection]
   (let [received (atom 0)
@@ -53,9 +46,7 @@
     (consumer/start consumer)
     (Thread/sleep 1000)
     (consumer/close consumer)
-    (is (= limit @received))
-    )
-  )
+    (is (= limit @received))))
 
 (defn on-failure-test [connection]
   (let [received (atom "")
@@ -72,9 +63,7 @@
     (consumer/start working-consumer)
     (Thread/sleep 1000)
     (consumer/close working-consumer)
-    (is (= test-message @received))
-    )
-  )
+    (is (= test-message @received))))
 
 (defn transacted-test [connection]
   (let [received (atom "")
@@ -90,9 +79,7 @@
     (consumer/start working-consumer)
     (Thread/sleep 1000)
     (consumer/close working-consumer)
-    (is (= test-message @received))
-    )
-  )
+    (is (= test-message @received))))
 
 (defn seqable-consumer-test [connection]
   (let [queue "seqable-consumer-test-queue"
@@ -104,14 +91,10 @@
     (producer/publish producer queue test-message2)
     (let [result (reduce into [] (map #(do (seqable/ack consumer) [%1]) (seqable/mseq consumer)))]
       (is (= test-message1 (result 0)))
-      (is (= test-message2 (result 1)))
-      )
+      (is (= test-message2 (result 1))))
     (let [result (reduce into [] (map #(do (seqable/ack consumer) [%1]) (seqable/mseq consumer)))]
-      (is (empty? result))
-      )
-    (seqable/close consumer)
-    )
-  )
+      (is (empty? result)))
+    (seqable/close consumer)))
 
 (defn seqable-consumer-close-test [connection]
   (let [queue "seqable-consumer-close-test-queue"
@@ -127,10 +110,7 @@
           result (reduce into [] (map #(do (seqable/ack consumer) [%1]) (seqable/mseq consumer)))]
       (is (= test-message1 (result 0)))
       (is (= test-message2 (result 1)))
-      (seqable/close consumer)
-      )
-    )
-  )
+      (seqable/close consumer))))
 
 (defn pipe-test [connection]
   (let [received (atom "")
@@ -146,9 +126,7 @@
     (Thread/sleep 1000)
     (pipe/close test-pipe)
     (consumer/close consumer)
-    (is (= test-message @received))
-    )
-  )
+    (is (= test-message @received))))
 
 (defn pipe-topic-test [connection]
   (let [received (atom "")
@@ -165,9 +143,7 @@
     (Thread/sleep 1000)
     (pipe/close test-pipe)
     (consumer/close consumer)
-    (is (= test-message @received))
-    )
-  )
+    (is (= test-message @received))))
 
 (defn pipe-limit-test [connection]
   (let [received (atom 0)
@@ -185,9 +161,7 @@
     (Thread/sleep 1000)
     (pipe/close test-pipe)
     (consumer/close consumer)
-    (is (= limit @received))
-    )
-  )
+    (is (= limit @received))))
 
 (defn multi-pipe-test [connection]
   (let [queue1 "multi-pipe-test-queue1"
@@ -209,9 +183,7 @@
     (consumer/close consumer2)
     (consumer/close consumer1)
     (is (= test-message @received1))
-    (is (= test-message @received2))
-    )
-  )
+    (is (= test-message @received2))))
 
 (defn multi-pipe-topic-test [connection]
   (let [topic1 "multi-pipe-topic-test-topic1"
@@ -234,9 +206,7 @@
     (consumer/close consumer2)
     (consumer/close consumer1)
     (is (= test-message @received1))
-    (is (= test-message @received2))
-    )
-  )
+    (is (= test-message @received2))))
 
 (defn multi-pipe-limit-test [connection]
   (let [queue1 "multi-pipe-limit-test-queue1"
@@ -260,9 +230,7 @@
     (consumer/close consumer2)
     (consumer/close consumer1)
     (is (= limit @received1))
-    (is (= limit @received2))
-    )
-  )
+    (is (= limit @received2))))
 
 (defn router-pipe-test [connection]
   (let [queue1 "router-pipe-test-queue1"
@@ -287,9 +255,7 @@
     (consumer/close consumer2)
     (consumer/close consumer1)
     (is (= test-message1 @received1))
-    (is (= test-message2 @received2))
-    )
-  )
+    (is (= test-message2 @received2))))
 
 (defn router-pipe-topic-test [connection]
   (let [topic1 "router-pipe-topic-test-topic1"
@@ -315,9 +281,7 @@
     (consumer/close consumer2)
     (consumer/close consumer1)
     (is (= test-message1 @received1))
-    (is (= test-message2 @received2))
-    )
-  )
+    (is (= test-message2 @received2))))
 
 (defn router-pipe-limit-test [connection]
   (let [queue1 "router-pipe-limit-test-queue1"
@@ -345,6 +309,4 @@
     (consumer/close consumer2)
     (consumer/close consumer1)
     (is (= 1 @received1))
-    (is (= 1 @received2))
-    )
-  )
+    (is (= 1 @received2))))

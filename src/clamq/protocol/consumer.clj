@@ -2,5 +2,4 @@
 
 (defprotocol Consumer
   (start [self])
-  (close [self])
-  )
+  (close [self]))

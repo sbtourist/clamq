@@ -9,17 +9,9 @@
            (try
              (~handler-fn ~'converted)
              (catch Exception ~'ex
-               (~failure-fn {:message ~'converted :exception ~'ex})
-               )
+               (~failure-fn {:message ~'converted :exception ~'ex}))
              (finally
-               (if (= ~limit ~'@counter) (do (.stop ~container) (future (.shutdown ~container))))
-               )
-             )
-           )
-         )
-       )
-     )
-  )
+               (if (= ~limit ~'@counter) (do (.stop ~container) (future (.shutdown ~container)))))))))))
 
 (defmacro blocking-listener [listener-class listener-method converter request-queue reply-queue container]
   `(proxy [~listener-class] []
@@ -32,10 +24,4 @@
              (and (nil? ~'m) (.isRunning ~container)) (recur)
              (and (nil? ~'m) (not (.isRunning ~container))) (throw (RuntimeException.))
              (= :rollback ~'m) (throw (RuntimeException.))
-             :else nil
-             )
-           )
-         )
-       )
-     )
-  )
+             :else nil))))))

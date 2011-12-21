@@ -3,5 +3,4 @@
 (defprotocol Seqable
   (mseq [self])
   (ack [self])
-  (close [self])
-  )
+  (close [self]))

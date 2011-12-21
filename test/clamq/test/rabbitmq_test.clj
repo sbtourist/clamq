@@ -8,30 +8,27 @@
    [clamq.pipes :as pipes]
    )
  (:use [clojure.test] 
-   [clamq.rabbitmq]
-   )
- (:import [org.springframework.amqp.core BindingBuilder Exchange Queue DirectExchange FanoutExchange TopicExchange] [org.springframework.amqp.rabbit.connection SingleConnectionFactory] [org.springframework.amqp.rabbit.core RabbitAdmin])
- )
+   [clamq.rabbitmq])
+ (:import [org.springframework.amqp.core BindingBuilder Exchange Queue DirectExchange FanoutExchange TopicExchange] 
+   [org.springframework.amqp.rabbit.connection CachingConnectionFactory] 
+   [org.springframework.amqp.rabbit.core RabbitAdmin]))
 
-(defonce admin (RabbitAdmin. (SingleConnectionFactory. "localhost")))
+(defonce admin (RabbitAdmin. (CachingConnectionFactory. "localhost")))
 
 (defn- declareQueue [queue]
   (.declareQueue admin (Queue. queue))
   (.declareExchange admin (DirectExchange. queue))
-  (.declareBinding admin (.. BindingBuilder (bind (Queue. queue)) (to (DirectExchange. queue)) (with queue)))
-  )
+  (.declareBinding admin (.. BindingBuilder (bind (Queue. queue)) (to (DirectExchange. queue)) (with queue))))
 
 (defn- declareTopic [queue]
   (.declareQueue admin (Queue. queue))
   (.declareExchange admin (TopicExchange. queue))
-  (.declareBinding admin (.. BindingBuilder (bind (Queue. queue)) (to (TopicExchange. queue)) (with queue)))
-  )
+  (.declareBinding admin (.. BindingBuilder (bind (Queue. queue)) (to (TopicExchange. queue)) (with queue))))
 
 (defn- declareFanout [queue]
   (.declareQueue admin (Queue. queue))
   (.declareExchange admin (FanoutExchange. queue))
-  (.declareBinding admin (.. BindingBuilder (bind (Queue. queue)) (to (FanoutExchange. queue))))
-  )
+  (.declareBinding admin (.. BindingBuilder (bind (Queue. queue)) (to (FanoutExchange. queue)))))
 
 (defn- producer-consumer-direct-test [connection]
   (let [received (atom "")
@@ -44,9 +41,7 @@
     (consumer/start consumer)
     (Thread/sleep 1000)
     (consumer/close consumer)
-    (is (= test-message @received))
-    )
-  )
+    (is (= test-message @received))))
 
 (defn- producer-consumer-topic-test [connection]
   (let [received (atom "")
@@ -60,9 +55,7 @@
     (producer/publish producer {:exchange queue :routing-key queue} test-message)
     (Thread/sleep 1000)
     (consumer/close consumer)
-    (is (= test-message @received))
-    )
-  )
+    (is (= test-message @received))))
 
 (defn- producer-consumer-fanout-test [connection]
   (let [received (atom "")
@@ -76,9 +69,7 @@
     (producer/publish producer {:exchange queue} test-message)
     (Thread/sleep 1000)
     (consumer/close consumer)
-    (is (= test-message @received))
-    )
-  )
+    (is (= test-message @received))))
 
 (defn- producer-consumer-limit-test [connection]
   (let [received (atom 0)
@@ -93,9 +84,7 @@
     (consumer/start consumer)
     (Thread/sleep 1000)
     (consumer/close consumer)
-    (is (= limit @received))
-    )
-  )
+    (is (= limit @received))))
 
 (defn- on-failure-test [connection]
   (let [received (atom "")
@@ -115,9 +104,7 @@
     (consumer/start working-consumer)
     (Thread/sleep 1000)
     (consumer/close working-consumer)
-    (is (= test-message @received))
-    )
-  )
+    (is (= test-message @received))))
 
 (defn- transacted-test [connection]
   (let [received (atom "")
@@ -135,9 +122,7 @@
     (consumer/start working-consumer)
     (Thread/sleep 1000)
     (consumer/close working-consumer)
-    (is (= test-message @received))
-    )
-  )
+    (is (= test-message @received))))
 
 (defn- seqable-consumer-test [connection]
   (let [queue "seqable-consumer-test-queue"
@@ -152,12 +137,8 @@
       (is (= test-message1 (result 0)))
       (is (= test-message2 (result 1)))
       (let [result (reduce into [] (map #(do (seqable/ack consumer) [%1]) (seqable/mseq consumer)))]
-        (is (empty? result))
-        )
-      (seqable/close consumer)
-      )
-    )
-  )
+        (is (empty? result)))
+      (seqable/close consumer))))
 
 (defn- seqable-consumer-close-test [connection]
   (let [queue "seqable-consumer-close-test-queue"
@@ -174,11 +155,7 @@
             result (reduce into [] (map #(do (seqable/ack consumer) [%1]) (seqable/mseq consumer)))]
         (is (= test-message1 (result 0)))
         (is (= test-message2 (result 1)))
-        (seqable/close consumer)
-        )
-      )
-    )
-  )
+        (seqable/close consumer)))))
 
 (defn- pipe-test [connection]
   (let [received (atom "")
@@ -196,9 +173,7 @@
     (Thread/sleep 1000)
     (pipe/close test-pipe)
     (consumer/close consumer)
-    (is (= test-message @received))
-    )
-  )
+    (is (= test-message @received))))
 
 (defn- multi-pipe-test [connection]
   (let [queue1 "multi-pipe-test-queue1"
@@ -223,9 +198,7 @@
     (consumer/close consumer2)
     (consumer/close consumer1)
     (is (= test-message @received1))
-    (is (= test-message @received2))
-    )
-  )
+    (is (= test-message @received2))))
 
 (defn- router-pipe-test [connection]
   (let [queue1 "router-pipe-test-queue1"
@@ -253,15 +226,11 @@
     (consumer/close consumer2)
     (consumer/close consumer1)
     (is (= test-message1 @received1))
-    (is (= test-message2 @received2))
-    )
-  )
+    (is (= test-message2 @received2))))
 
 (defn setup-connection-and-test [test-fn]
   (with-open [connection (rabbitmq-connection "localhost")]
-    (test-fn connection)
-    )
-  )
+    (test-fn connection)))
 
 (deftest rabbitmq-test-suite []
   (setup-connection-and-test producer-consumer-direct-test)
@@ -274,5 +243,4 @@
   (setup-connection-and-test seqable-consumer-close-test)
   (setup-connection-and-test pipe-test)
   (setup-connection-and-test multi-pipe-test)
-  (setup-connection-and-test router-pipe-test)
-  )
+  (setup-connection-and-test router-pipe-test))

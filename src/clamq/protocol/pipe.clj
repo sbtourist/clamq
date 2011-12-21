@@ -2,5 +2,4 @@
 
 (defprotocol Pipe
   (open [self])
-  (close [self])
-  )
+  (close [self]))

@@ -1,9 +1,7 @@
 (ns clamq.helpers)
 
 (defn discard [message]
-  nil
-  )
+  nil)
 
 (defn rethrow-on-failure [failure]
-  (throw (:exception failure))
-  )
+  (throw (:exception failure)))
