@@ -1,4 +1,4 @@
-(defproject clamq "0.4-SNAPSHOT"
+(defproject clamq "0.4"
  :description "Clojure APIs for Message Queues"
  :dev-dependencies
     [[lein-sub "0.1.1"]]
