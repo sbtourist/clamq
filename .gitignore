@@ -3,3 +3,8 @@ pom.xml
 lib
 classes
 *orig
+/clamq-activemq/.lein-failures
+/clamq-core/.lein-failures
+/clamq-jms/.lein-failures
+/clamq-rabbitmq/.lein-failures
+/clamq-runner/.lein-failures
