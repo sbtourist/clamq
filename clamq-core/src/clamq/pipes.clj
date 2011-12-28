@@ -3,13 +3,16 @@
    [clamq.helpers :as helpers] 
    [clamq.protocol.connection :as connection]
    [clamq.protocol.consumer :as consumer]
-   [clamq.protocol.producer :as producer]
-   [clamq.protocol.pipe :as pipe]))
+   [clamq.protocol.producer :as producer]))
 
 (defn- make-producer [connection pubSub]
   (connection/producer connection {:pubSub pubSub}))
 
-(defn pipe [{{source :endpoint s-connection :connection s-pubSub :pubSub :or {s-pubSub false}} :from
+(defprotocol Pipe
+  (open [self])
+  (close [self]))
+
+(defn single-pipe [{{source :endpoint s-connection :connection s-pubSub :pubSub :or {s-pubSub false}} :from
              {destination :endpoint d-connection :connection d-pubSub :pubSub :or {d-pubSub false}} :to
              filter-fn :filter-by
              failure-fn :on-failure
@@ -22,7 +25,7 @@
         #(producer/publish (memoized-producer d-connection d-pubSub) destination (filter-fn %1) {})
         head-consumer
         (connection/consumer s-connection {:endpoint source :on-message filtered-unicast :on-failure failure-fn :transacted transacted :pubSub s-pubSub :limit limit})]
-    (reify pipe/Pipe
+    (reify Pipe
       (open [self] (consumer/start head-consumer))
       (close [self] (consumer/close head-consumer)))))
 
@@ -40,7 +43,7 @@
              (when (not (nil? filtered-message)) (producer/publish (memoized-producer (d :connection) (or (d :pubSub) false)) (d :endpoint) filtered-message {}))))
         head-consumer
         (connection/consumer s-connection {:endpoint source :on-message filtered-multicast :on-failure failure-fn :transacted transacted :pubSub s-pubSub :limit limit})]
-    (reify pipe/Pipe
+    (reify Pipe
       (open [self] (consumer/start head-consumer))
       (close [self] (consumer/close head-consumer)))))
 
@@ -63,6 +66,6 @@
              (when (not (nil? message)) (producer/publish producer endpoint message {}))))
         head-consumer
         (connection/consumer s-connection {:endpoint source :on-message routed-multicast :on-failure failure-fn :transacted transacted :pubSub s-pubSub :limit limit})]
-    (reify pipe/Pipe
+    (reify Pipe
       (open [self] (consumer/start head-consumer))
       (close [self] (consumer/close head-consumer)))))

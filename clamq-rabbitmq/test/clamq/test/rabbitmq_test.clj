@@ -4,9 +4,7 @@
    [clamq.protocol.consumer :as consumer]
    [clamq.protocol.seqable :as seqable]
    [clamq.protocol.producer :as producer]
-   [clamq.protocol.pipe :as pipe]
-   [clamq.pipes :as pipes]
-   )
+   [clamq.pipes :as pipes])
  (:use [clojure.test] 
    [clamq.rabbitmq])
  (:import [org.springframework.amqp.core BindingBuilder Exchange Queue DirectExchange FanoutExchange TopicExchange] 
@@ -163,15 +161,15 @@
         queue2 "pipe-test-queue2"
         consumer (connection/consumer connection {:endpoint queue2 :on-message #(reset! received %1) :transacted true})
         producer (connection/producer connection)
-        test-pipe (pipes/pipe {:from {:connection connection :endpoint queue1} :to {:connection connection :endpoint {:exchange queue2 :routing-key queue2}} :transacted true})
+        test-pipe (pipes/single-pipe {:from {:connection connection :endpoint queue1} :to {:connection connection :endpoint {:exchange queue2 :routing-key queue2}} :transacted true})
         test-message "pipe-test"]
     (declareQueue queue1)
     (declareQueue queue2)
     (consumer/start consumer)
     (producer/publish producer {:exchange queue1 :routing-key queue1} test-message)
-    (pipe/open test-pipe)
+    (pipes/open test-pipe)
     (Thread/sleep 1000)
-    (pipe/close test-pipe)
+    (pipes/close test-pipe)
     (consumer/close consumer)
     (is (= test-message @received))))
 
@@ -192,9 +190,9 @@
     (consumer/start consumer1)
     (consumer/start consumer2)
     (producer/publish producer {:exchange queue1 :routing-key queue1} test-message)
-    (pipe/open test-pipe)
+    (pipes/open test-pipe)
     (Thread/sleep 1000)
-    (pipe/close test-pipe)
+    (pipes/close test-pipe)
     (consumer/close consumer2)
     (consumer/close consumer1)
     (is (= test-message @received1))
@@ -220,9 +218,9 @@
     (consumer/start consumer2)
     (producer/publish producer {:exchange queue1 :routing-key queue1} test-message1)
     (producer/publish producer {:exchange queue1 :routing-key queue1} test-message2)
-    (pipe/open test-pipe)
+    (pipes/open test-pipe)
     (Thread/sleep 1000)
-    (pipe/close test-pipe)
+    (pipes/close test-pipe)
     (consumer/close consumer2)
     (consumer/close consumer1)
     (is (= test-message1 @received1))
