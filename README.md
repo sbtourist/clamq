@@ -280,7 +280,7 @@ You have access to all Clamq namespaces and functions, more specifically:
 * clamq.activemq can be accessed with the "activemq" prefix.
 * clamq.rabbitmq can be accessed with the "rabbitmq" prefix.
 
-Then, simply run it as follows:
+Then, download the Clamq Runner from the Downloads section and simply run it as follows:
 
     java -jar clamq-runner-version-standalone.jar your.clj
 
