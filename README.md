@@ -264,11 +264,11 @@ i.e. for processing messages on the fly or just moving them around.
 
 In order to use it, you have to write a Clojure file containing some Clamq code, for example:
 
-   (with-open [c1 (activemq/activemq-connection "tcp://localhost:61616") c2 (rabbitmq/rabbitmq-connection "localhost")]
-     (println "Opening pipe...")
-     (pipes/open (pipes/single-pipe {:from {:connection c1 :endpoint "q1"} :to {:connection c2 :endpoint {:routing-key "q2"}} :transacted true}))
-     (println "Done!")
-     (Thread/join))
+    (with-open [c1 (activemq/activemq-connection "tcp://localhost:61616") c2 (rabbitmq/rabbitmq-connection "localhost")]
+      (println "Opening pipe...")
+      (pipes/open (pipes/single-pipe {:from {:connection c1 :endpoint "q1"} :to {:connection c2 :endpoint {:routing-key "q2"}} :transacted true}))
+      (println "Done!")
+      (Thread/join))
 
 You have access to all Clamq namespaces and functions, more specifically:
 
@@ -282,7 +282,7 @@ You have access to all Clamq namespaces and functions, more specifically:
 
 Then, simply run it as follows:
 
-   java -jar clamq-runner-version-standalone.jar your.clj
+    java -jar clamq-runner-version-standalone.jar your.clj
 
 ## A note about resource management
 
