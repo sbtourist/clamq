@@ -1,4 +1,4 @@
-# Clamq - Clojure APIs for Message Queues - Version 0.3
+# Clamq - Clojure APIs for Message Queues - Version 0.4
 
 Clamq is a Clojure adpater for interacting with message queues, providing simple APIs to connect to brokers and sending/consuming messages to/from message queues and topics.
 
@@ -12,21 +12,19 @@ Clamq supports **JMS** and **AMQP** brokers, more specifically:
 
 ## Configuring dependencies
 
-Clamq can be configured in your Leiningen project file as follows:
+Clamq comes with several sub-projects, depending on the broker/APIs you want to use.
 
-    [clamq "0.3"]
+For working with generic JMS, import the following dependency:
 
-It is available on Clojars, so everything should be pretty straightforward.
+    [clamq/clamq-jms "0.4"]
 
-Also, depending on the broker you want to connect to, you need to declare the related dependency.
+For working with ActiveMQ, import the following dependency:
 
-For ActiveMQ:
+    [clamq/clamq-activemq "0.4"]
 
-    [org.apache.activemq/activemq-core "5.5.0"]
+For working with RabbitMQ, import the following dependency:
 
-For RabbitMQ:
-
-    [org.springframework.amqp/spring-rabbit "1.0.0.RC3"]
+    [clamq/clamq-rabbitmq "0.4"]
 
 ## Connecting to brokers
 
@@ -206,21 +204,21 @@ Clamq provides different kind of pipes:
 
 **Unicast** pipes, connecting two single endpoints:
 
-    (use 'clamq.protocol.pipe 'clamq.pipes)
-    (def pipe (pipe {
+    (use 'clamq.pipes)
+    (def pipe (single-pipe {
       :from {:connection connection :endpoint source :pubSub pubSub}
       :to {:connection connection :endpoint destination} :transacted true :pubSub pubSub :limit limit :filter-by filter-fn :on-failure failure-fn}))
 
 **Multicast** pipes, connecting a source endpoint with multiple destination endpoints:
 
-    (use 'clamq.protocol.pipe 'clamq.pipes)
+    (use 'clamq.pipes)
     (def pipe (multi-pipe {
       :from {:connection connection :endpoint source :pubSub pubSub}
       :to [{:connection connection :endpoint destination1 :pubSub pubSub :filter-by filter-fn }] :transacted true :limit limit :on-failure failure-fn}))
 
 **Router** pipes, connecting a source endpoint with one or more destination endpoints dynamically defined by a router function:
 
-    (use 'clamq.protocol.pipe 'clamq.pipes)
+    (use 'clamq.pipes)
     (def pipe (router-pipe {
       :from {:connection connection :endpoint source :pubSub pubSub}
       :route-with router-fn :transacted true :limit limit :on-failure failure-fn}))
@@ -259,6 +257,33 @@ handled message (:message) and the raised exception (:exception):
 
     (defn my-failure-handler [failure] (println "Message: " (failure :message)) (println "Exception: " (failure :exception)))
 
+## Runner
+
+Clamq Runner is a quick and easy way to run Clojure code containing Clamq instructions, which comes in handy when you want to quickly interact with message queues,
+i.e. for processing messages on the fly or just moving them around.
+
+In order to use it, you have to write a Clojure file containing some Clamq code, for example:
+
+   (with-open [c1 (activemq/activemq-connection "tcp://localhost:61616") c2 (rabbitmq/rabbitmq-connection "localhost")]
+     (println "Opening pipe...")
+     (pipes/open (pipes/single-pipe {:from {:connection c1 :endpoint "q1"} :to {:connection c2 :endpoint {:routing-key "q2"}} :transacted true}))
+     (println "Done!")
+     (Thread/join))
+
+You have access to all Clamq namespaces and functions, more specifically:
+
+* clamq.protocol.connection can be accessed with the "connection" prefix.
+* clamq.protocol.consumer can be accessed with the "consumer" prefix.
+* clamq.protocol.seqable can be accessed with the "seqable" prefix.
+* clamq.protocol.producer can be accessed with the "producer" prefix.
+* clamq.pipes can be accessed with the "pipes" prefix.
+* clamq.activemq can be accessed with the "activemq" prefix.
+* clamq.rabbitmq can be accessed with the "rabbitmq" prefix.
+
+Then, simply run it as follows:
+
+   java -jar clamq-runner-version-standalone.jar your.clj
+
 ## A note about resource management
 
 As you may have noted, connections, consumers and pipes provide a close function to properly free resources. So, you can use all of them in idiomatic 
@@ -270,9 +295,11 @@ As you may have noted, connections, consumers and pipes provide a close function
 
 ## Examples
 
-* clamq/test/base\_jms\_test.clj
-* clamq/test/activemq\_test.clj
-* clamq/test/rabbitmq\_test.clj
+Clamq tests work good as examples too:
+
+* [JMS](https://github.com/sbtourist/clamq/blob/master/clamq-jms/src/clamq/test/base_jms_test.clj)
+* [ActiveMQ](https://github.com/sbtourist/clamq/blob/master/clamq-activemq/test/clamq/test/activemq_test.clj)
+* [RabbitMQ](https://github.com/sbtourist/clamq/blob/master/clamq-rabbitmq/test/clamq/test/rabbitmq_test.clj)
 
 ## Feedback
 
