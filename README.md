@@ -12,7 +12,7 @@ Clamq supports **JMS** and **AMQP** brokers, more specifically:
 
 ## Configuring dependencies
 
-Clamq comes with several sub-projects, depending on the broker/APIs you want to use.
+Clamq comes with several sub-projects, depending on the broker/APIs you want to use: all dependencies are available on [Clojars](http://clojars.org/).
 
 For working with generic JMS, import the following dependency:
 
