@@ -268,7 +268,7 @@ In order to use it, you have to write a Clojure file containing some Clamq code,
       (println "Opening pipe...")
       (pipes/open (pipes/single-pipe {:from {:connection c1 :endpoint "q1"} :to {:connection c2 :endpoint {:routing-key "q2"}} :transacted true}))
       (println "Done!")
-      (Thread/join))
+      (.join (Thread/currentThread)))
 
 You have access to all Clamq namespaces and functions, more specifically:
 
