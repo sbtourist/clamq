@@ -3,6 +3,7 @@
  (:import
    [java.io Closeable]
    [org.apache.activemq ActiveMQConnectionFactory]
+   [org.apache.activemq.pool PooledConnectionFactory]
    [org.springframework.jms.connection CachingConnectionFactory]))
 
 (defn activemq-connection [broker & {username :username password :password max-connections :max-connections :or {max-connections 1}}]
@@ -10,6 +11,7 @@
 It currently supports the following optional named arguments (refer to ActiveMQ docs for more details about them):
 :username, :password"
   (when (nil? broker) (throw (IllegalArgumentException. "No value specified for broker URL!")))
-  (let [factory (doto (ActiveMQConnectionFactory. broker) (.setUserName username) (.setPassword password))
-        pool (CachingConnectionFactory. factory)]
-    (jms/jms-connection pool #(.destroy pool))))
+  (let [pool (doto 
+              (PooledConnectionFactory. (ActiveMQConnectionFactory. username password broker)) 
+              (.setMaxConnections max-connections))]    
+    (jms/jms-connection pool #(.stop pool))))
