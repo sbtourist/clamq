@@ -35,8 +35,7 @@
   (when (nil? transacted) (throw (IllegalArgumentException. "No value specified for :transacted!")))
   (when (nil? handler-fn) (throw (IllegalArgumentException. "No value specified for :on-message!")))
   (let [container (DefaultMessageListenerContainer.) 
-        listener (macros/non-blocking-listener MessageListener onMessage (SimpleMessageConverter.) handler-fn failure-fn limit container)
-        _ (println max-consumers)]
+        listener (macros/non-blocking-listener MessageListener onMessage (SimpleMessageConverter.) handler-fn failure-fn limit container)]
     (doto container
       (.setConnectionFactory connection)
       (.setDestinationName endpoint)
@@ -44,7 +43,7 @@
       (.setSessionTransacted transacted)
       (.setPubSubDomain pubSub)
       (.setConcurrentConsumers 1)
-      (.setMaxConcurrentConsumers (> max-consumers 1) max-consumers 1))
+      (.setMaxConcurrentConsumers (if (> max-consumers 1) max-consumers 1)))
     (reify consumer/Consumer
       (start [self] (do (doto container (.start) (.initialize)) nil))
       (close [self] (do (.shutdown container) nil)))))
