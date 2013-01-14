@@ -29,20 +29,22 @@
         (.convertAndSend template destination message (proxy-message-post-processor attributes)))
       (publish [self destination message] (producer/publish self destination message {})))))
 
-(defn- jms-consumer [connection {endpoint :endpoint handler-fn :on-message transacted :transacted pubSub :pubSub limit :limit failure-fn :on-failure :or {pubSub false limit 0 failure-fn helpers/rethrow-on-failure}}]
+(defn- jms-consumer [connection {endpoint :endpoint handler-fn :on-message transacted :transacted pubSub :pubSub limit :limit max-consumers :max-consumers failure-fn :on-failure :or {pubSub false limit 0 max-consumers 1 failure-fn helpers/rethrow-on-failure}}]
   (when (nil? connection) (throw (IllegalArgumentException. "No value specified for connection!")))
   (when (nil? endpoint) (throw (IllegalArgumentException. "No value specified for :endpoint!")))
   (when (nil? transacted) (throw (IllegalArgumentException. "No value specified for :transacted!")))
   (when (nil? handler-fn) (throw (IllegalArgumentException. "No value specified for :on-message!")))
   (let [container (DefaultMessageListenerContainer.) 
-        listener (macros/non-blocking-listener MessageListener onMessage (SimpleMessageConverter.) handler-fn failure-fn limit container)]
+        listener (macros/non-blocking-listener MessageListener onMessage (SimpleMessageConverter.) handler-fn failure-fn limit container)
+        _ (println max-consumers)]
     (doto container
       (.setConnectionFactory connection)
       (.setDestinationName endpoint)
       (.setMessageListener listener)
       (.setSessionTransacted transacted)
       (.setPubSubDomain pubSub)
-      (.setConcurrentConsumers 1))
+      (.setConcurrentConsumers 1)
+      (.setMaxConcurrentConsumers (> max-consumers 1) max-consumers 1))
     (reify consumer/Consumer
       (start [self] (do (doto container (.start) (.initialize)) nil))
       (close [self] (do (.shutdown container) nil)))))
