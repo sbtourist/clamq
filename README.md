@@ -139,6 +139,7 @@ The configuration map currently supports the following keys (mandatory, except w
 
 * **:endpoint** is the name of a message queue endpoint to consume from.
 * **:on-message** is the handler function called at each consumed message, accepting the message itself as unique argument.
+* **:converter** is the MessageConverter implementation, which also can be used for access to the raw JMSMessage.
 * **:transacted** defines (true/false) if the message consumption must be locally transactional.
 * **:pubSub** in only valid for JMS brokers, and defines if consumer messages are from publish/subscribe, that is, must be consumed from a topic (optional).
 * **:limit** defines the max number of consumed messages, after which the consumer stops itself (optional: defaults to 0, unlimited).
