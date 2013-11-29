@@ -20,10 +20,14 @@
       (doseq [attribute attributes] (.setStringProperty message (attribute 0) (attribute 1)))
       message)))
 
-(defn- jms-producer [connection {pubSub :pubSub :or {pubSub false}}]
+(defn- jms-producer [connection {pubSub :pubSub timeToLive :timeToLive :or {pubSub false}}]
   (when (nil? connection) (throw (IllegalArgumentException. "No value specified for connection!")))
   (let [template (JmsTemplate. connection)]
     (doto template (.setMessageConverter (SimpleMessageConverter.)) (.setPubSubDomain pubSub))
+    (when timeToLive
+      (doto template
+        (.setExplicitQosEnabled true)
+        (.setTimeToLive timeToLive)))
     (reify producer/Producer
       (publish [self destination message attributes]
         (.convertAndSend template destination message (proxy-message-post-processor attributes)))
