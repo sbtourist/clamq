@@ -1,12 +1,13 @@
 (ns clamq.jms
  (:require
-   [clamq.helpers :as helpers] 
+   [clamq.helpers :as helpers]
    [clamq.internal.macros :as macros]
-   [clamq.internal.utils :as utils] 
+   [clamq.internal.utils :as utils]
    [clamq.protocol.connection :as connection]
    [clamq.protocol.consumer :as consumer]
    [clamq.protocol.seqable :as seqable]
-   [clamq.protocol.producer :as producer])
+   [clamq.protocol.producer :as producer]
+   [clamq.converters.body-and-header-converter :as conv])
  (:import
    [java.util.concurrent SynchronousQueue]
    [javax.jms BytesMessage ObjectMessage TextMessage ExceptionListener MessageListener]
@@ -20,22 +21,27 @@
       (doseq [attribute attributes] (.setStringProperty message (attribute 0) (attribute 1)))
       message)))
 
-(defn- jms-producer [connection {pubSub :pubSub :or {pubSub false}}]
+(defn- jms-producer [connection {pubSub :pubSub timeToLive :timeToLive :or {pubSub false}}]
   (when (nil? connection) (throw (IllegalArgumentException. "No value specified for connection!")))
   (let [template (JmsTemplate. connection)]
     (doto template (.setMessageConverter (SimpleMessageConverter.)) (.setPubSubDomain pubSub))
+    (when timeToLive
+      (doto template
+        (.setExplicitQosEnabled true)
+        (.setTimeToLive timeToLive)))
     (reify producer/Producer
       (publish [self destination message attributes]
         (.convertAndSend template destination message (proxy-message-post-processor attributes)))
       (publish [self destination message] (producer/publish self destination message {})))))
 
-(defn- jms-consumer [connection {endpoint :endpoint handler-fn :on-message transacted :transacted pubSub :pubSub limit :limit failure-fn :on-failure :or {pubSub false limit 0 failure-fn helpers/rethrow-on-failure}}]
+(defn- jms-consumer [connection {endpoint :endpoint handler-fn :on-message transacted :transacted pubSub :pubSub limit :limit failure-fn :on-failure convert-with-headers :convert-with-headers :or {pubSub false limit 0 failure-fn helpers/rethrow-on-failure convert-with-headers false}}]
   (when (nil? connection) (throw (IllegalArgumentException. "No value specified for connection!")))
   (when (nil? endpoint) (throw (IllegalArgumentException. "No value specified for :endpoint!")))
   (when (nil? transacted) (throw (IllegalArgumentException. "No value specified for :transacted!")))
   (when (nil? handler-fn) (throw (IllegalArgumentException. "No value specified for :on-message!")))
-  (let [container (DefaultMessageListenerContainer.) 
-        listener (macros/non-blocking-listener MessageListener onMessage (SimpleMessageConverter.) handler-fn failure-fn limit container)]
+  (let [container (DefaultMessageListenerContainer.)
+        msg-converter (if convert-with-headers (conv/body-and-header-converter) (SimpleMessageConverter.))
+        listener (macros/non-blocking-listener MessageListener onMessage msg-converter handler-fn failure-fn limit container)]
     (doto container
       (.setConnectionFactory connection)
       (.setDestinationName endpoint)
@@ -51,7 +57,7 @@
   (when (nil? connection) (throw (IllegalArgumentException. "No value specified for connection!")))
   (when (nil? endpoint) (throw (IllegalArgumentException. "No value specified for :endpoint!")))
   (let [request-queue (SynchronousQueue.) reply-queue (SynchronousQueue.)
-        container (DefaultMessageListenerContainer.) 
+        container (DefaultMessageListenerContainer.)
         listener (macros/blocking-listener MessageListener onMessage (SimpleMessageConverter.) request-queue reply-queue container)]
     (doto container
       (.setConnectionFactory connection)
@@ -59,7 +65,7 @@
       (.setMessageListener listener)
       (.setSessionTransacted true)
       (.setConcurrentConsumers 1)
-      (.start) 
+      (.start)
       (.initialize))
     (reify seqable/Seqable
       (mseq [self]

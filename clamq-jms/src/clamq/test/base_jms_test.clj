@@ -5,7 +5,7 @@
    [clamq.protocol.seqable :as seqable]
    [clamq.protocol.producer :as producer]
    [clamq.pipes :as pipes])
- (:use 
+ (:use
    [clojure.test]))
 
 (defn producer-consumer-test [connection]
@@ -309,3 +309,23 @@
     (consumer/close consumer1)
     (is (= 1 @received1))
     (is (= 1 @received2))))
+
+(defn producer-consumer-with-properties-test [connection]
+  (let [received (atom "")
+        queue "producer-consumer-with-properties-test-queue"
+        consumer (connection/consumer connection {:endpoint queue :on-message #(reset! received %1) :transacted false :convert-with-headers true})
+        producer (connection/producer connection)
+        test-message "producer-consumer-test"
+        prop-key-1 "property1"
+        prop-val-1 "test1"
+        prop-key-2 "property2"
+        prop-val-2 "test2"
+        properties {prop-key-1 prop-val-1 prop-key-2 prop-val-2}]
+    (producer/publish producer queue test-message properties)
+    (consumer/start consumer)
+    (Thread/sleep 2000)
+    (consumer/close consumer)
+    (let [received-msg @received]
+         (is (= test-message (:body received-msg)))
+         (is (= prop-val-1 ((keyword prop-key-1) (:headers received-msg))))
+         (is (= prop-val-2 ((keyword prop-key-2) (:headers received-msg)))))))
