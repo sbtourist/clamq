@@ -7,4 +7,6 @@
      "clamq-jms"
      "clamq-activemq"
      "clamq-rabbitmq"
-     "clamq-runner"])
+     "clamq-runner"]
+
+:plugins [[lein-sub "0.3.0"]])

@@ -9,6 +9,7 @@
   (setup-connection-and-test producer-consumer-test)
   (setup-connection-and-test producer-consumer-topic-test)
   (setup-connection-and-test producer-consumer-limit-test)
+  (setup-connection-and-test producer-consumer-with-properties-test)
   (setup-connection-and-test on-failure-test)
   (setup-connection-and-test transacted-test)
   (setup-connection-and-test seqable-consumer-test)
