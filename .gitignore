@@ -6,3 +6,17 @@ target
 .lein-repl-history
 .nrepl-port
 pom.xml
+<<<<<<< HEAD
+=======
+*jar
+lib
+classes
+*orig
+/clamq-activemq/.lein-failures
+/clamq-core/.lein-failures
+/clamq-jms/.lein-failures
+/clamq-rabbitmq/.lein-failures
+/clamq-runner/.lein-failures
+*/.lein-repl-history
+*/.nrepl-port
+>>>>>>> gdp-update

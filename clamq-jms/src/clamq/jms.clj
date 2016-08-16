@@ -24,7 +24,9 @@
 (defn- jms-producer [connection {pubSub :pubSub timeToLive :timeToLive :or {pubSub false}}]
   (when (nil? connection) (throw (IllegalArgumentException. "No value specified for connection!")))
   (let [template (JmsTemplate. connection)]
-    (doto template (.setMessageConverter (SimpleMessageConverter.)) (.setPubSubDomain pubSub))
+    (doto template 
+      (.setMessageConverter (SimpleMessageConverter.)) 
+      (.setPubSubDomain pubSub))
     (when timeToLive
       (doto template
         (.setExplicitQosEnabled true)
