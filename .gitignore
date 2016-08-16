@@ -8,3 +8,5 @@ classes
 /clamq-jms/.lein-failures
 /clamq-rabbitmq/.lein-failures
 /clamq-runner/.lein-failures
+*/.lein-repl-history
+*/.nrepl-port

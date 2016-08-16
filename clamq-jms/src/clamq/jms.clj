@@ -23,7 +23,9 @@
 (defn- jms-producer [connection {pubSub :pubSub :or {pubSub false}}]
   (when (nil? connection) (throw (IllegalArgumentException. "No value specified for connection!")))
   (let [template (JmsTemplate. connection)]
-    (doto template (.setMessageConverter (SimpleMessageConverter.)) (.setPubSubDomain pubSub))
+    (doto template 
+      (.setMessageConverter (SimpleMessageConverter.)) 
+      (.setPubSubDomain pubSub))
     (reify producer/Producer
       (publish [self destination message attributes]
         (.convertAndSend template destination message (proxy-message-post-processor attributes)))
