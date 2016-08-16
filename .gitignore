@@ -3,5 +3,6 @@ target
 */.nrepl-port
 .lein-repl-history
 .lein-failures
+.lein-repl-history
+.nrepl-port
 pom.xml
-*.xml.asc
