@@ -106,14 +106,16 @@ The configuration map currently supports the following keys:
 
 Once defined, the producer can be used to send messages as follows:
 
-    (publish producer endpoint message attributes)
+    (publish producer endpoint message headers)
 
 Where:
 
 * **producer** is a producer obtained as previously described.
 * **endpoint** is the definition of a message queue endpoint.
 * **message** is the message to be sent, of type text or object.
-* **attributes** is only for JMS brokers, and defines an optional map of attributes to set into the message.
+* **headers** is only for JMS brokers. It allows for setting JMS header attributes as well as for providing general purpose key/value properties.
+
+`TODO: give example of headers map`
 
 The **endpoint** definition depends on the actual broker:
 for JMS brokers, it is just the queue/topic name, for AMQP brokers it is a map containing two entries, *:exchange* and *:routing-key*.

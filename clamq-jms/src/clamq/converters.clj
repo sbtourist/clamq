@@ -1,6 +1,6 @@
-(ns clamq.converters.body-and-header-converter
+(ns clamq.converters
   (:import [org.springframework.jms.support.converter MessageConverter SimpleMessageConverter]
-           [javax.jms JMSException]))
+           [javax.jms Session]))
 
 (defn- message-headers [message]
   {:correlation-id (.getJMSCorrelationID message)
@@ -13,8 +13,7 @@
    :redelivered (.getJMSRedelivered message)
    :reply-to (.getJMSReplyTo message)
    :time-stamp (.getJMSTimestamp message)
-   :type (.getJMSType message)
-   })
+   :type (.getJMSType message)})
 
 (defn- message-properties [message]
   (when-let [properties (.getProperties message)]

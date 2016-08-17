@@ -20,10 +20,13 @@
   (let [template (RabbitTemplate. connection)]
     (doto template (.setMessageConverter (SimpleMessageConverter.)))
     (reify producer/Producer
-      (publish [self destination message attributes]
+      (publish [self destination message headers]
         (let [exchange (or (destination :exchange) "") routing-key (or (destination :routing-key) "")]
           (.convertAndSend template exchange routing-key message)))
-      (publish [self destination message] (producer/publish self destination message {})))))
+      (publish [self destination message] (producer/publish self destination message {})) 
+      (request-reply [self destination message headers]
+        ;; TODO implement spring request-reply
+        ))))
 
 (defn- rabbitmq-consumer [connection {endpoint :endpoint handler-fn :on-message transacted :transacted limit :limit failure-fn :on-failure :or {limit 0 failure-fn helpers/rethrow-on-failure}}]
   (when (nil? connection) (throw (IllegalArgumentException. "No value specified for connection!")))
@@ -58,8 +61,7 @@
       (.initialize))
     (reify seqable/Seqable
       (mseq [self]
-        (utils/receiver-seq request-queue timeout)
-        )
+        (utils/receiver-seq request-queue timeout))
       (ack [self]
         (when-not (.offer reply-queue :commit 10 java.util.concurrent.TimeUnit/SECONDS)
           (.shutdown container)

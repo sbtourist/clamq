@@ -7,7 +7,7 @@
    [clamq.protocol.consumer :as consumer]
    [clamq.protocol.seqable :as seqable]
    [clamq.protocol.producer :as producer]
-   [clamq.converters.body-and-header-converter :as conv])
+   [clamq.converters :as conv])
  (:import
    [java.util.concurrent SynchronousQueue]
    [javax.jms BytesMessage ObjectMessage TextMessage ExceptionListener MessageListener]
@@ -15,10 +15,12 @@
    [org.springframework.jms.support.converter SimpleMessageConverter]
    [org.springframework.jms.listener DefaultMessageListenerContainer]))
 
-(defn- proxy-message-post-processor [attributes]
+;; TODO - add other header info here...
+(defn- proxy-message-post-processor [{properties :properties :as headers}]
   (proxy [MessagePostProcessor] []
     (postProcessMessage [message]
-      (doseq [attribute attributes] (.setStringProperty message (attribute 0) (attribute 1)))
+      (doseq [property properties] 
+        (.setStringProperty message (property 0) (property 1)))
       message)))
 
 (defn- jms-producer [connection {pubSub :pubSub timeToLive :timeToLive :or {pubSub false}}]
@@ -32,9 +34,12 @@
         (.setExplicitQosEnabled true)
         (.setTimeToLive timeToLive)))
     (reify producer/Producer
-      (publish [self destination message attributes]
-        (.convertAndSend template destination message (proxy-message-post-processor attributes)))
-      (publish [self destination message] (producer/publish self destination message {})))))
+      (publish [self destination message headers]
+        (.convertAndSend template destination message (proxy-message-post-processor headers)))
+      (publish [self destination message] (producer/publish self destination message {}))
+      (request-reply [self destination message headers]
+        ;; TODO implement spring request-reply
+        )))
 
 (defn- jms-consumer [connection {endpoint :endpoint handler-fn :on-message transacted :transacted pubSub :pubSub limit :limit failure-fn :on-failure convert-with-headers :convert-with-headers :or {pubSub false limit 0 failure-fn helpers/rethrow-on-failure convert-with-headers false}}]
   (when (nil? connection) (throw (IllegalArgumentException. "No value specified for connection!")))
@@ -58,7 +63,8 @@
 (defn- jms-seqable-consumer [connection {endpoint :endpoint timeout :timeout :or {timeout 0}}]
   (when (nil? connection) (throw (IllegalArgumentException. "No value specified for connection!")))
   (when (nil? endpoint) (throw (IllegalArgumentException. "No value specified for :endpoint!")))
-  (let [request-queue (SynchronousQueue.) reply-queue (SynchronousQueue.)
+  (let [request-queue (SynchronousQueue.) 
+        reply-queue (SynchronousQueue.)
         container (DefaultMessageListenerContainer.)
         listener (macros/blocking-listener MessageListener onMessage (SimpleMessageConverter.) request-queue reply-queue container)]
     (doto container
