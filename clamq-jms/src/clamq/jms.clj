@@ -10,36 +10,33 @@
    [clamq.converters :as conv])
  (:import
    [java.util.concurrent SynchronousQueue]
-   [javax.jms BytesMessage ObjectMessage TextMessage ExceptionListener MessageListener]
-   [org.springframework.jms.core JmsTemplate MessagePostProcessor]
+   [javax.jms BytesMessage ObjectMessage TextMessage ExceptionListener MessageListener Session]
+   [org.springframework.jms.core JmsTemplate MessagePostProcessor MessageCreator]
    [org.springframework.jms.support.converter SimpleMessageConverter]
    [org.springframework.jms.listener DefaultMessageListenerContainer]))
-
-;; TODO - add other header info here...
-(defn- proxy-message-post-processor [{properties :properties :as headers}]
-  (proxy [MessagePostProcessor] []
-    (postProcessMessage [message]
-      (doseq [property properties] 
-        (.setStringProperty message (property 0) (property 1)))
-      message)))
-
+    
 (defn- jms-producer [connection {pubSub :pubSub timeToLive :timeToLive :or {pubSub false}}]
   (when (nil? connection) (throw (IllegalArgumentException. "No value specified for connection!")))
   (let [template (JmsTemplate. connection)]
     (doto template 
-      (.setMessageConverter (SimpleMessageConverter.)) 
-      (.setPubSubDomain pubSub))
+      ;; (.setMessageConverter (SimpleMessageConverter.)) 
+      (.setMessageConverter (conv/body-and-header-converter))
+      (.setPubSubDomain pubSub) 
+
+      ;; TODO - make configurable 
+      (.setReceiveTimeout 3000)) 
     (when timeToLive
       (doto template
         (.setExplicitQosEnabled true)
         (.setTimeToLive timeToLive)))
+
+    (prn "Template: " (.getReceiveTimeout template))
     (reify producer/Producer
-      (publish [self destination message headers]
-        (.convertAndSend template destination message (proxy-message-post-processor headers)))
+      (publish [_ destination message headers]
+        (.send template destination (conv/message-creator message headers)))
       (publish [self destination message] (producer/publish self destination message {}))
-      (request-reply [self destination message headers]
-        ;; TODO implement spring request-reply
-        )))
+      (request-reply [_ destination message headers]
+        (.sendAndReceive template destination (conv/message-creator message headers))))))
 
 (defn- jms-consumer [connection {endpoint :endpoint handler-fn :on-message transacted :transacted pubSub :pubSub limit :limit failure-fn :on-failure convert-with-headers :convert-with-headers :or {pubSub false limit 0 failure-fn helpers/rethrow-on-failure convert-with-headers false}}]
   (when (nil? connection) (throw (IllegalArgumentException. "No value specified for connection!")))
@@ -86,8 +83,9 @@
         (.offer reply-queue :rollback 5 java.util.concurrent.TimeUnit/SECONDS)
         (.shutdown container)))))
 
-(defn jms-connection [connectionFactory close-fn]
-"Returns a JMS Connection from the given javax.jms.ConnectionFactory object."
+(defn jms-connection 
+  "Returns a JMS Connection from the given javax.jms.ConnectionFactory object."
+  [connectionFactory close-fn]
   (reify connection/Connection
     (producer [self]
       (jms-producer connectionFactory {}))
