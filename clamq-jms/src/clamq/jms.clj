@@ -14,23 +14,25 @@
    [org.springframework.jms.core JmsTemplate MessagePostProcessor MessageCreator]
    [org.springframework.jms.support.converter SimpleMessageConverter]
    [org.springframework.jms.listener DefaultMessageListenerContainer]))
+
+(defmacro validate [value failed-msg]
+  `(when (nil? ~value)
+     (throw (IllegalArgumentException. ~failed-msg))))
     
-(defn- jms-producer [connection {pubSub :pubSub timeToLive :timeToLive :or {pubSub false}}]
-  (when (nil? connection) (throw (IllegalArgumentException. "No value specified for connection!")))
+(defn- jms-producer [connection {:keys [pubsub time-to-live receive-timeout]
+                                 :or   {pubsub false
+                                        receive-timeout 10000}}]
+  (validate connection "No value specified for connection!")
   (let [template (JmsTemplate. connection)]
     (doto template 
-      ;; (.setMessageConverter (SimpleMessageConverter.)) 
       (.setMessageConverter (conv/body-and-header-converter))
-      (.setPubSubDomain pubSub) 
-
-      ;; TODO - make configurable 
-      (.setReceiveTimeout 3000)) 
-    (when timeToLive
+      (.setPubSubDomain pubsub) 
+      (.setReceiveTimeout receive-timeout)) 
+    (when time-to-live
       (doto template
         (.setExplicitQosEnabled true)
-        (.setTimeToLive timeToLive)))
+        (.setTimeToLive time-to-live)))
 
-    (prn "Template: " (.getReceiveTimeout template))
     (reify producer/Producer
       (publish [_ destination message headers]
         (.send template destination (conv/message-creator message headers)))
@@ -38,11 +40,17 @@
       (request-reply [_ destination message headers]
         (.sendAndReceive template destination (conv/message-creator message headers))))))
 
-(defn- jms-consumer [connection {endpoint :endpoint handler-fn :on-message transacted :transacted pubSub :pubSub limit :limit failure-fn :on-failure convert-with-headers :convert-with-headers :or {pubSub false limit 0 failure-fn helpers/rethrow-on-failure convert-with-headers false}}]
-  (when (nil? connection) (throw (IllegalArgumentException. "No value specified for connection!")))
-  (when (nil? endpoint) (throw (IllegalArgumentException. "No value specified for :endpoint!")))
-  (when (nil? transacted) (throw (IllegalArgumentException. "No value specified for :transacted!")))
-  (when (nil? handler-fn) (throw (IllegalArgumentException. "No value specified for :on-message!")))
+(defn- jms-consumer [connection {:keys [endpoint transacted pubsub limit convert-with-headers] 
+                                 handler-fn :on-message 
+                                 failure-fn :on-failure
+                                 :or {pubsub false 
+                                      limit 0 
+                                      failure-fn helpers/rethrow-on-failure 
+                                      convert-with-headers false}}]
+  (validate connection "No value specified for connection!")
+  (validate endpoint "No value specified for :endpoint!")
+  (validate transacted "No value specified for :transacted!")
+  (validate handler-fn "No value specified for :on-message!")
   (let [container (DefaultMessageListenerContainer.)
         msg-converter (if convert-with-headers (conv/body-and-header-converter) (SimpleMessageConverter.))
         listener (macros/non-blocking-listener MessageListener onMessage msg-converter handler-fn failure-fn limit container)]
@@ -51,15 +59,15 @@
       (.setDestinationName endpoint)
       (.setMessageListener listener)
       (.setSessionTransacted transacted)
-      (.setPubSubDomain pubSub)
+      (.setPubSubDomain pubsub)
       (.setConcurrentConsumers 1))
     (reify consumer/Consumer
       (start [self] (do (doto container (.start) (.initialize)) nil))
       (close [self] (do (.shutdown container) nil)))))
 
-(defn- jms-seqable-consumer [connection {endpoint :endpoint timeout :timeout :or {timeout 0}}]
-  (when (nil? connection) (throw (IllegalArgumentException. "No value specified for connection!")))
-  (when (nil? endpoint) (throw (IllegalArgumentException. "No value specified for :endpoint!")))
+(defn- jms-seqable-consumer [connection {:keys [endpoint timeout] :or {timeout 0}}]
+  (validate connection "No value specified for connection!")
+  (validate endpoint "No value specified for :endpoint!")
   (let [request-queue (SynchronousQueue.) 
         reply-queue (SynchronousQueue.)
         container (DefaultMessageListenerContainer.)
