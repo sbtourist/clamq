@@ -18,13 +18,10 @@
 
 (defn uuid [] 
   (.toString (java.util.UUID/randomUUID)))
-;; (defmacro setter [method ^TextMessage object value]
-;;   `(when (seq ~value)
-;;      (. ~object ~method ~value)))
 
 (defn- headers->jms-message [jms-message headers]
   (.setJMSCorrelationID jms-message (:correlation-id headers (uuid))) 
-  ;; (setter setJMSCorrelationIDAsBytes jms-message (:correlation-id-as-bytes headers))
+  ;; (.setJMSCorrelationIDAsBytes jms-message (:correlation-id-as-bytes headers))
   (.setJMSDeliveryMode jms-message (:delivery-mode headers (DeliveryMode/PERSISTENT)))
   (.setJMSExpiration jms-message (:expiration headers 0))
   (.setJMSPriority jms-message (:priority headers 4))
