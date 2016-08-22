@@ -15,14 +15,10 @@
    [org.springframework.jms.support.converter SimpleMessageConverter]
    [org.springframework.jms.listener DefaultMessageListenerContainer]))
 
-(defmacro validate [value failed-msg]
-  `(when (nil? ~value)
-     (throw (IllegalArgumentException. ~failed-msg))))
-    
 (defn- jms-producer [connection {:keys [pubsub time-to-live receive-timeout]
                                  :or   {pubsub false
                                         receive-timeout 10000}}]
-  (validate connection "No value specified for connection!")
+  (macros/validate connection "No value specified for connection!")
   (let [template (JmsTemplate. connection)]
     (doto template 
       (.setMessageConverter (conv/body-and-header-converter))
@@ -47,10 +43,10 @@
                                       limit 0 
                                       failure-fn helpers/rethrow-on-failure 
                                       convert-with-headers false}}]
-  (validate connection "No value specified for connection!")
-  (validate endpoint "No value specified for :endpoint!")
-  (validate transacted "No value specified for :transacted!")
-  (validate handler-fn "No value specified for :on-message!")
+  (macros/validate connection "No value specified for connection!")
+  (macros/validate endpoint "No value specified for :endpoint!")
+  (macros/validate transacted "No value specified for :transacted!")
+  (macros/validate handler-fn "No value specified for :on-message!")
   (let [container (DefaultMessageListenerContainer.)
         msg-converter (if convert-with-headers (conv/body-and-header-converter) (SimpleMessageConverter.))
         listener (macros/non-blocking-listener MessageListener onMessage msg-converter handler-fn failure-fn limit container)]
@@ -66,8 +62,8 @@
       (close [self] (do (.shutdown container) nil)))))
 
 (defn- jms-seqable-consumer [connection {:keys [endpoint timeout] :or {timeout 0}}]
-  (validate connection "No value specified for connection!")
-  (validate endpoint "No value specified for :endpoint!")
+  (macros/validate connection "No value specified for connection!")
+  (macros/validate endpoint "No value specified for :endpoint!")
   (let [request-queue (SynchronousQueue.) 
         reply-queue (SynchronousQueue.)
         container (DefaultMessageListenerContainer.)

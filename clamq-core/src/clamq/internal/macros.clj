@@ -1,5 +1,11 @@
 (ns clamq.internal.macros)
 
+(defmacro validate 
+  "Validates value is not nil. If it is, throw IllegalArgumentException with failed-msg"
+  [value failed-msg]
+  `(when (nil? ~value)
+     (throw (IllegalArgumentException. ~failed-msg))))
+    
 (defmacro non-blocking-listener [listener-class listener-method converter handler-fn failure-fn limit container]
   `(let [~'counter (atom 0)]
      (proxy [~listener-class] []
