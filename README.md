@@ -104,19 +104,33 @@ The configuration map currently supports the following keys:
 
 * **:pubSub** : valid only for JMS brokers, defines (true/false) if produced messages are for publish/subscribe, that is, must be sent to a topic.
 
+###### Publish
+
 Once defined, the producer can be used to send messages as follows:
 
-    (publish producer endpoint message attributes)
+    (publish producer endpoint message headers)
 
 Where:
 
 * **producer** is a producer obtained as previously described.
 * **endpoint** is the definition of a message queue endpoint.
 * **message** is the message to be sent, of type text or object.
-* **attributes** is only for JMS brokers, and defines an optional map of attributes to set into the message.
+* **headers** is only for JMS brokers. It allows for setting JMS header attributes as well as for providing general purpose key/value properties.
+
+`TODO: give example of headers map`
 
 The **endpoint** definition depends on the actual broker:
 for JMS brokers, it is just the queue/topic name, for AMQP brokers it is a map containing two entries, *:exchange* and *:routing-key*.
+
+
+###### Request-Reply
+
+The Producer also has the ability to perform a synchronous request-reply. Under the covers, this leverages a temporary destination as the return channel where a blocking **receive** is performed on that channel for a given amount of time (as defined by **receive-timeout**. defaults to 10 seconds). If no response is received within that time, *nil* is returned.
+
+
+    (request-reply producer endpoint message headers) 
+    
+  
 
 ### Message consumers
 

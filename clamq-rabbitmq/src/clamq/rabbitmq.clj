@@ -16,20 +16,29 @@
    [org.springframework.amqp.rabbit.listener SimpleMessageListenerContainer]))
 
 (defn- rabbitmq-producer [connection]
-  (when (nil? connection) (throw (IllegalArgumentException. "No value specified for connection!")))
+  (macros/validate connection "No value specified for connection!")
   (let [template (RabbitTemplate. connection)]
     (doto template (.setMessageConverter (SimpleMessageConverter.)))
     (reify producer/Producer
-      (publish [self destination message attributes]
-        (let [exchange (or (destination :exchange) "") routing-key (or (destination :routing-key) "")]
+      (publish [_ destination message headers]
+        (let [exchange    (or (destination :exchange) "")
+              routing-key (or (destination :routing-key) "")]
           (.convertAndSend template exchange routing-key message)))
-      (publish [self destination message] (producer/publish self destination message {})))))
+      (publish [self destination message] (producer/publish self destination message {})) 
+      (request-reply [_ destination message headers]
+        (let [exchange    (or (destination :exchange) "")
+              routing-key (or (destination :routing-key) "")]
+          (.sendAndReceive exchange routing-key message))))))
 
-(defn- rabbitmq-consumer [connection {endpoint :endpoint handler-fn :on-message transacted :transacted limit :limit failure-fn :on-failure :or {limit 0 failure-fn helpers/rethrow-on-failure}}]
-  (when (nil? connection) (throw (IllegalArgumentException. "No value specified for connection!")))
-  (when (nil? endpoint) (throw (IllegalArgumentException. "No value specified for :endpoint!")))
-  (when (nil? transacted) (throw (IllegalArgumentException. "No value specified for :transacted!")))
-  (when (nil? handler-fn) (throw (IllegalArgumentException. "No value specified for :on-message!")))
+(defn- rabbitmq-consumer [connection {:keys [endpoint transacted limit] 
+                                      handler-fn :on-message 
+                                      failure-fn :on-failure
+                                      :or   {limit 0 
+                                             failure-fn helpers/rethrow-on-failure}}]
+  (macros/validate connection "No value specified for connection!")
+  (macros/validate endpoint "No value specified for :endpoint!")
+  (macros/validate transacted "No value specified for :transacted!")
+  (macros/validate handler-fn "No value specified for :on-message!")
   (let [container (SimpleMessageListenerContainer.) 
         listener (macros/non-blocking-listener MessageListener onMessage (SimpleMessageConverter.) handler-fn failure-fn limit container)]
     (doto container
@@ -42,9 +51,9 @@
       (start [self] (do (doto container (.start) (.initialize)) nil))
       (close [self] (do (.stop container) nil)))))
 
-(defn- rabbitmq-seqable-consumer [connection {endpoint :endpoint timeout :timeout :or {timeout 0}}]
-  (when (nil? connection) (throw (IllegalArgumentException. "No value specified for connection!")))
-  (when (nil? endpoint) (throw (IllegalArgumentException. "No value specified for :endpoint!")))
+(defn- rabbitmq-seqable-consumer [connection {:keys [endpoint timeout] :or {timeout 0}}]
+  (macros/validate connection "No value specified for connection!")
+  (macros/validate endpoint "No value specified for :endpoint!")
   (let [request-queue (SynchronousQueue.) reply-queue (SynchronousQueue.)
         container (SimpleMessageListenerContainer.) 
         listener (macros/blocking-listener MessageListener onMessage (SimpleMessageConverter.) request-queue reply-queue container)]
@@ -58,8 +67,7 @@
       (.initialize))
     (reify seqable/Seqable
       (mseq [self]
-        (utils/receiver-seq request-queue timeout)
-        )
+        (utils/receiver-seq request-queue timeout))
       (ack [self]
         (when-not (.offer reply-queue :commit 10 java.util.concurrent.TimeUnit/SECONDS)
           (.shutdown container)
@@ -68,11 +76,13 @@
         (.offer reply-queue :rollback 5 java.util.concurrent.TimeUnit/SECONDS)
         (.shutdown container)))))
 
-(defn rabbitmq-connection [broker & {username :username password :password :or {username "guest" password "guest"}}]
-"Returns a RabbitMQ connection pointing to the given broker url.
-It currently supports the following optional named arguments (refer to RabbitMQ docs for more details about them):
-:username, :password."
-  (when (nil? broker) (throw (IllegalArgumentException. "No value specified for broker URL!")))
+(defn rabbitmq-connection 
+  "Returns a RabbitMQ connection pointing to the given broker url.
+   It currently supports the following optional named arguments (refer to RabbitMQ docs for more details about them):
+   :username, :password."
+  [broker & {:keys [username password]
+             :or   {username "guest" password "guest"}}]
+  (macros/validate broker "No value specified for broker URL!")
   (let [factory (CachingConnectionFactory. broker)]
     (doto factory
       (.setUsername username)
